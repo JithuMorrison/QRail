@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 
 // ----------------- Utilities -----------------
 const REDUNDANCY = 3;
+const EXPECTED_GRID_SIZE = 18; // Fixed grid size
 
 // Generate random MongoDB ObjectId
 const generateObjectId = () =>
@@ -77,7 +78,7 @@ const bitsToText = (bits, length) => {
   return result;
 };
 
-// Encode ObjectId to grid
+// Encode ObjectId to 18x18 grid
 const encodeObjectId = (oid) => {
   const hexStr = oid;
   const bits = textToBits(hexStr);
@@ -89,8 +90,15 @@ const encodeObjectId = (oid) => {
     }
   }
   
-  const totalNeeded = expandedBits.length + 4;
-  const gridSize = Math.ceil(Math.sqrt(totalNeeded));
+  // Fixed 18x18 grid
+  const gridSize = EXPECTED_GRID_SIZE;
+  const totalCells = gridSize * gridSize;
+  const dataCells = totalCells - 4; // Minus 4 corner markers
+  
+  // Check if data fits in 18x18 grid
+  if (expandedBits.length > dataCells) {
+    console.warn(`Too many bits for ${gridSize}x${gridSize} grid. Truncating.`);
+  }
   
   const grid = Array.from({ length: gridSize }, () => Array(gridSize).fill('/'));
   
@@ -100,7 +108,7 @@ const encodeObjectId = (oid) => {
   grid[gridSize - 1][0] = '\\';
   grid[gridSize - 1][gridSize - 1] = '\\';
   
-  // Fill grid
+  // Fill grid with data bits
   let idx = 0;
   for (let i = 0; i < gridSize; i++) {
     for (let j = 0; j < gridSize; j++) {
@@ -110,7 +118,7 @@ const encodeObjectId = (oid) => {
           (i === gridSize - 1 && j === gridSize - 1)) {
         continue;
       }
-      if (idx < expandedBits.length) {
+      if (idx < expandedBits.length && idx < dataCells) {
         grid[i][j] = expandedBits[idx] === 1 ? '\\' : '/';
         idx++;
       }
@@ -120,7 +128,7 @@ const encodeObjectId = (oid) => {
   return { grid, length: hexStr.length };
 };
 
-// Decode grid
+// Decode 18x18 grid
 const decodeGrid = (grid, length) => {
   const bits = [];
   const gridSize = grid.length;
@@ -145,49 +153,46 @@ const gridToText = (grid) => {
   return grid.map(row => row.join('')).join('\n');
 };
 
-// Enhanced image processing for green line detection
-const detectGridFromImage = (imageData, width, height, expectedSize) => {
-  // Detect grid size automatically if not provided
-  if (!expectedSize) {
-    expectedSize = detectGridSize(imageData, width, height);
-    if (!expectedSize) return null;
-  }
-
-  const cellSize = Math.floor(Math.min(width, height) / expectedSize);
-  if (cellSize < 3) return null;
+// Enhanced image processing for 18x18 grid detection
+const detectGridFromImage = (imageData, width, height) => {
+  const expectedSize = EXPECTED_GRID_SIZE;
   
-  // Find grid boundaries using corner detection
-  const boundaries = findGridBoundaries(imageData, width, height, expectedSize);
-  if (!boundaries) return null;
+  // Step 1: Preprocess image to enhance contrast
+  const enhancedData = enhanceContrast(imageData, width, height);
+  
+  // Step 2: Find grid boundaries using corner detection
+  const boundaries = findGridBoundaries(enhancedData, width, height, expectedSize);
+  if (!boundaries) {
+    console.log('Could not find grid boundaries');
+    return null;
+  }
   
   const { startX, startY, gridWidth, gridHeight } = boundaries;
-  const actualCellSizeX = gridWidth / expectedSize;
-  const actualCellSizeY = gridHeight / expectedSize;
+  const cellSizeX = gridWidth / expectedSize;
+  const cellSizeY = gridHeight / expectedSize;
   
+  console.log(`Grid detected at (${startX}, ${startY}) size ${gridWidth}x${gridHeight}, cell size: ${cellSizeX.toFixed(1)}x${cellSizeY.toFixed(1)}`);
+  
+  // Step 3: Detect each cell pattern
   const detectedGrid = [];
   for (let i = 0; i < expectedSize; i++) {
     const row = [];
     for (let j = 0; j < expectedSize; j++) {
-      const centerX = startX + j * actualCellSizeX + actualCellSizeX / 2;
-      const centerY = startY + i * actualCellSizeY + actualCellSizeY / 2;
+      const cellCenterX = startX + j * cellSizeX + cellSizeX / 2;
+      const cellCenterY = startY + i * cellSizeY + cellSizeY / 2;
       
-      // Sample multiple points along potential line directions
-      const isBackslash = detectLinePattern(imageData, width, height, centerX, centerY, 
-                                           actualCellSizeX * 0.4, true); // \ direction
-      const isSlash = detectLinePattern(imageData, width, height, centerX, centerY, 
-                                       actualCellSizeX * 0.4, false); // / direction
-      
-      // Determine which pattern is stronger
-      if (isBackslash && !isSlash) {
+      // Skip corner markers (they should be \)
+      if ((i === 0 && j === 0) || 
+          (i === 0 && j === expectedSize - 1) || 
+          (i === expectedSize - 1 && j === 0) || 
+          (i === expectedSize - 1 && j === expectedSize - 1)) {
         row.push('\\');
-      } else if (isSlash && !isBackslash) {
-        row.push('/');
-      } else {
-        // Fallback to brightness detection
-        const brightness = getAreaBrightness(imageData, width, height, 
-                                           centerX, centerY, actualCellSizeX * 0.3);
-        row.push(brightness < 128 ? '\\' : '/');
+        continue;
       }
+      
+      // Analyze cell content
+      const pattern = analyzeCellPattern(enhancedData, width, height, cellCenterX, cellCenterY, cellSizeX, cellSizeY);
+      row.push(pattern);
     }
     detectedGrid.push(row);
   }
@@ -195,187 +200,199 @@ const detectGridFromImage = (imageData, width, height, expectedSize) => {
   return detectedGrid;
 };
 
-// Detect grid size by finding the pattern repetition
-const detectGridSize = (imageData, width, height) => {
-  const edgeMap = detectEdges(imageData, width, height);
+// Enhance image contrast for better detection
+const enhanceContrast = (imageData, width, height) => {
+  const enhanced = new Uint8ClampedArray(imageData.length);
   
-  // Look for repeating patterns in the edge density
-  const horizontalProjection = new Array(height).fill(0);
-  const verticalProjection = new Array(width).fill(0);
-  
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      if (edgeMap[y * width + x] > 0) {
-        horizontalProjection[y]++;
-        verticalProjection[x]++;
-      }
-    }
+  // Find min and max values for contrast stretching
+  let min = 255, max = 0;
+  for (let i = 0; i < imageData.length; i += 4) {
+    const gray = 0.299 * imageData[i] + 0.587 * imageData[i + 1] + 0.114 * imageData[i + 2];
+    if (gray < min) min = gray;
+    if (gray > max) max = gray;
   }
   
-  // Find peaks in projections to estimate grid size
-  const hPeaks = findPeaks(horizontalProjection);
-  const vPeaks = findPeaks(verticalProjection);
+  // Apply contrast stretching
+  const range = max - min || 1;
+  for (let i = 0; i < imageData.length; i += 4) {
+    const r = imageData[i];
+    const g = imageData[i + 1];
+    const b = imageData[i + 2];
+    
+    // Convert to grayscale with green emphasis
+    const gray = (0.1 * r + 0.8 * g + 0.1 * b);
+    const stretched = Math.min(255, Math.max(0, ((gray - min) * 255) / range));
+    
+    enhanced[i] = stretched;
+    enhanced[i + 1] = stretched;
+    enhanced[i + 2] = stretched;
+    enhanced[i + 3] = 255;
+  }
   
-  if (hPeaks.length < 3 || vPeaks.length < 3) return 7; // Default fallback
-  
-  const estimatedSize = Math.min(hPeaks.length, vPeaks.length) - 1;
-  return Math.max(5, Math.min(15, estimatedSize)); // Reasonable grid size range
+  return enhanced;
 };
 
-// Find grid boundaries using corner detection
+// Find grid boundaries for 18x18 grid
 const findGridBoundaries = (imageData, width, height, expectedSize) => {
-  const corners = findCorners(imageData, width, height);
-  
-  if (corners.length < 4) {
-    // Fallback: assume centered grid
-    const gridSizePixels = Math.min(width, height) * 0.7;
-    return {
-      startX: (width - gridSizePixels) / 2,
-      startY: (height - gridSizePixels) / 2,
-      gridWidth: gridSizePixels,
-      gridHeight: gridSizePixels
-    };
+  // Convert to grayscale for processing
+  const grayscale = [];
+  for (let i = 0; i < imageData.length; i += 4) {
+    grayscale.push(imageData[i]); // Use red channel (already grayscale from enhancement)
   }
   
-  // Use the four extreme corners
-  const left = Math.min(...corners.map(c => c.x));
-  const right = Math.max(...corners.map(c => c.x));
-  const top = Math.min(...corners.map(c => c.y));
-  const bottom = Math.max(...corners.map(c => c.y));
+  // Use Hough-like transform to find grid lines
+  const horizontalLines = findLines(grayscale, width, height, 'horizontal');
+  const verticalLines = findLines(grayscale, width, height, 'vertical');
+  
+  if (horizontalLines.length < expectedSize || verticalLines.length < expectedSize) {
+    console.log(`Not enough lines found: ${horizontalLines.length} horizontal, ${verticalLines.length} vertical`);
+    return findGridByCorners(grayscale, width, height, expectedSize);
+  }
+  
+  // Take the strongest expectedSize lines
+  const strongHorizontal = horizontalLines.slice(0, expectedSize).sort((a, b) => a - b);
+  const strongVertical = verticalLines.slice(0, expectedSize).sort((a, b) => a - b);
+  
+  const startY = strongHorizontal[0];
+  const endY = strongHorizontal[strongHorizontal.length - 1];
+  const startX = strongVertical[0];
+  const endX = strongVertical[strongVertical.length - 1];
   
   return {
-    startX: left,
-    startY: top,
-    gridWidth: right - left,
-    gridHeight: bottom - top
+    startX: startX,
+    startY: startY,
+    gridWidth: endX - startX,
+    gridHeight: endY - startY
   };
 };
 
-// Detect line patterns (green lines specifically)
-const detectLinePattern = (imageData, width, height, centerX, centerY, radius, isBackslash) => {
-  let greenCount = 0;
-  let totalCount = 0;
-  const samples = 20;
+// Find lines using projection method
+const findLines = (grayscale, width, height, direction) => {
+  const projection = direction === 'horizontal' ? 
+    new Array(height).fill(0) : new Array(width).fill(0);
   
-  for (let t = 0; t < samples; t++) {
-    const angle = isBackslash ? Math.PI / 4 : -Math.PI / 4;
-    const distance = (t / samples) * radius * 2 - radius;
-    
-    const x = centerX + distance * Math.cos(angle);
-    const y = centerY + distance * Math.sin(angle);
-    
-    if (x >= 0 && x < width && y >= 0 && y < height) {
-      const idx = Math.floor(y) * width + Math.floor(x);
-      const pixelIdx = idx * 4;
+  // Create projection
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      const value = 255 - grayscale[idx]; // Invert: dark lines have high values
       
-      const r = imageData[pixelIdx];
-      const g = imageData[pixelIdx + 1];
-      const b = imageData[pixelIdx + 2];
-      
-      // Check for green dominance (typical in monochrome displays with green text)
-      if (g > r * 1.2 && g > b * 1.2 && g > 100) {
-        greenCount++;
+      if (direction === 'horizontal') {
+        projection[y] += value;
+      } else {
+        projection[x] += value;
       }
-      totalCount++;
     }
   }
   
-  return greenCount / totalCount > 0.3; // At least 30% green pixels along the line
-};
-
-// Helper functions
-const detectEdges = (imageData, width, height) => {
-  const grayscale = [];
-  for (let i = 0; i < imageData.length; i += 4) {
-    const gray = 0.299 * imageData[i] + 0.587 * imageData[i + 1] + 0.114 * imageData[i + 2];
-    grayscale.push(gray);
-  }
-  
-  const edges = new Array(grayscale.length).fill(0);
-  const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-  const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-  
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      let gx = 0, gy = 0;
-      for (let ky = -1; ky <= 1; ky++) {
-        for (let kx = -1; kx <= 1; kx++) {
-          const idx = (y + ky) * width + (x + kx);
-          const weightX = sobelX[(ky + 1) * 3 + (kx + 1)];
-          const weightY = sobelY[(ky + 1) * 3 + (kx + 1)];
-          gx += grayscale[idx] * weightX;
-          gy += grayscale[idx] * weightY;
-        }
-      }
-      edges[y * width + x] = Math.sqrt(gx * gx + gy * gy);
-    }
-  }
-  
-  return edges;
-};
-
-const findPeaks = (signal, threshold = 0.3) => {
-  const maxVal = Math.max(...signal);
-  const minVal = Math.min(...signal);
-  const range = maxVal - minVal;
-  const actualThreshold = minVal + range * threshold;
-  
-  const peaks = [];
-  for (let i = 1; i < signal.length - 1; i++) {
-    if (signal[i] > actualThreshold && signal[i] > signal[i - 1] && signal[i] > signal[i + 1]) {
-      peaks.push(i);
-    }
-  }
+  // Find peaks in projection
+  const peaks = findStrongPeaks(projection, direction === 'horizontal' ? height / EXPECTED_GRID_SIZE : width / EXPECTED_GRID_SIZE);
   return peaks;
 };
 
-const findCorners = (imageData, width, height) => {
-  const edges = detectEdges(imageData, width, height);
-  const cornerThreshold = 50;
-  const corners = [];
+// Find strong peaks with minimum distance
+const findStrongPeaks = (signal, minDistance) => {
+  const peaks = [];
+  const smoothed = smoothSignal(signal, 3);
   
-  for (let y = 2; y < height - 2; y++) {
-    for (let x = 2; x < width - 2; x++) {
-      if (edges[y * width + x] > cornerThreshold) {
-        // Simple corner detection - look for edge intersections
-        let edgeCount = 0;
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            if (dx === 0 && dy === 0) continue;
-            if (edges[(y + dy) * width + (x + dx)] > cornerThreshold / 2) {
-              edgeCount++;
-            }
-          }
-        }
-        if (edgeCount >= 4) { // Corner-like pattern
-          corners.push({ x, y });
-        }
+  for (let i = 1; i < smoothed.length - 1; i++) {
+    if (smoothed[i] > smoothed[i - 1] && smoothed[i] > smoothed[i + 1]) {
+      // Check if this peak is far enough from previous peaks
+      if (peaks.every(peak => Math.abs(peak - i) >= minDistance)) {
+        peaks.push(i);
       }
     }
   }
   
-  return corners;
+  // Sort by strength and return top EXPECTED_GRID_SIZE peaks
+  return peaks
+    .map(idx => ({ idx, value: smoothed[idx] }))
+    .sort((a, b) => b.value - a.value)
+    .map(item => item.idx)
+    .slice(0, EXPECTED_GRID_SIZE);
 };
 
-const getAreaBrightness = (imageData, width, height, centerX, centerY, radius) => {
-  let sum = 0;
-  let count = 0;
+// Smooth signal using moving average
+const smoothSignal = (signal, windowSize) => {
+  const smoothed = new Array(signal.length);
+  const halfWindow = Math.floor(windowSize / 2);
   
-  for (let dy = -radius; dy <= radius; dy++) {
-    for (let dx = -radius; dx <= radius; dx++) {
-      const x = Math.round(centerX + dx);
-      const y = Math.round(centerY + dy);
-      
-      if (x >= 0 && x < width && y >= 0 && y < height) {
-        const idx = (y * width + x) * 4;
-        const brightness = 0.299 * imageData[idx] + 0.587 * imageData[idx + 1] + 0.114 * imageData[idx + 2];
-        sum += brightness;
-        count++;
-      }
+  for (let i = 0; i < signal.length; i++) {
+    let sum = 0;
+    let count = 0;
+    for (let j = Math.max(0, i - halfWindow); j <= Math.min(signal.length - 1, i + halfWindow); j++) {
+      sum += signal[j];
+      count++;
+    }
+    smoothed[i] = sum / count;
+  }
+  
+  return smoothed;
+};
+
+// Fallback method: find grid by detecting corners
+const findGridByCorners = (grayscale, width, height, expectedSize) => {
+  // Simple center-based detection as fallback
+  const gridSizePixels = Math.min(width, height) * 0.6;
+  return {
+    startX: (width - gridSizePixels) / 2,
+    startY: (height - gridSizePixels) / 2,
+    gridWidth: gridSizePixels,
+    gridHeight: gridSizePixels
+  };
+};
+
+// Analyze individual cell pattern
+const analyzeCellPattern = (imageData, width, height, centerX, centerY, cellWidth, cellHeight) => {
+  const radius = Math.min(cellWidth, cellHeight) * 0.3;
+  
+  // Sample points along backslash direction (\)
+  let backslashScore = 0;
+  let slashScore = 0;
+  const samples = 16;
+  
+  for (let t = 0; t < samples; t++) {
+    const progress = (t / (samples - 1)) * 2 - 1; // -1 to 1
+    
+    // Backslash direction points
+    const bx = centerX + progress * radius;
+    const by = centerY + progress * radius;
+    
+    // Slash direction points
+    const sx = centerX + progress * radius;
+    const sy = centerY - progress * radius;
+    
+    // Sample backslash line
+    if (bx >= 0 && bx < width && by >= 0 && by < height) {
+      const bidx = (Math.floor(by) * width + Math.floor(bx)) * 4;
+      const brightness = imageData[bidx];
+      backslashScore += (255 - brightness); // Darker pixels score higher
+    }
+    
+    // Sample slash line
+    if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
+      const sidx = (Math.floor(sy) * width + Math.floor(sx)) * 4;
+      const brightness = imageData[sidx];
+      slashScore += (255 - brightness);
     }
   }
   
-  return count > 0 ? sum / count : 255;
+  // Determine which pattern is stronger
+  const totalPossible = samples * 255;
+  const backslashStrength = backslashScore / totalPossible;
+  const slashStrength = slashScore / totalPossible;
+  
+  console.log(`Cell at (${Math.round(centerX)}, ${Math.round(centerY)}): \\=${backslashStrength.toFixed(3)}, /=${slashStrength.toFixed(3)}`);
+  
+  // Use threshold to decide
+  if (backslashStrength > 0.3 && backslashStrength > slashStrength * 1.2) {
+    return '\\';
+  } else if (slashStrength > 0.3 && slashStrength > backslashStrength * 1.2) {
+    return '/';
+  } else {
+    // Default to slash for ambiguous cases
+    return '/';
+  }
 };
 
 // ----------------- React Component -----------------
@@ -424,7 +441,7 @@ const MongoTextGrid = () => {
         videoRef.current.srcObject = mediaStream;
       }
       setIsScanning(true);
-      setDetectionInfo('Camera started - point at the grid pattern');
+      setDetectionInfo('Camera started - point at the 18x18 grid pattern');
     } catch (error) {
       alert("Could not access camera: " + error.message);
     }
@@ -454,15 +471,18 @@ const MongoTextGrid = () => {
     
     if (detectedGrid) {
       try {
-        const gridSize = detectedGrid.length;
-        const decoded = decodeGrid(detectedGrid, 24); // ObjectId is always 24 chars
-        handleDecode(decoded, `Detected ${gridSize}×${gridSize} grid with green line analysis`);
+        const decoded = decodeGrid(detectedGrid, 24);
+        handleDecode(decoded, `Successfully detected and decoded 18x18 grid pattern`);
+        
+        // Log the detected grid for debugging
+        console.log('Detected grid pattern:');
+        detectedGrid.forEach(row => console.log(row.join('')));
       } catch (error) {
         console.error('Decode error:', error);
         alert("Could not decode the detected pattern");
       }
     } else {
-      alert("Could not detect grid pattern in image");
+      alert("Could not detect 18x18 grid pattern in image");
     }
   };
 
@@ -484,15 +504,14 @@ const MongoTextGrid = () => {
 
       if (detectedGrid) {
         try {
-          const gridSize = detectedGrid.length;
           const decoded = decodeGrid(detectedGrid, 24);
-          handleDecode(decoded, `Detected ${gridSize}×${gridSize} grid from uploaded image`);
+          handleDecode(decoded, `Successfully detected 18x18 grid from uploaded image`);
         } catch (error) {
           console.error('Decode error:', error);
           alert("Could not decode the detected pattern");
         }
       } else {
-        alert("Could not detect grid pattern in uploaded image");
+        alert("Could not detect 18x18 grid pattern in uploaded image");
       }
     };
 
@@ -502,7 +521,7 @@ const MongoTextGrid = () => {
   return (
     <div style={{ padding: '32px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
       <h1 style={{ fontSize: '28px', fontWeight: 'bold', textAlign: 'center', marginBottom: '32px', color: '#333' }}>
-        MongoDB ObjectId Text Grid Decoder (Green Line Detection)
+        MongoDB ObjectId 18×18 Grid Decoder
       </h1>
       
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '32px' }}>
@@ -510,7 +529,7 @@ const MongoTextGrid = () => {
         {/* Generator Section */}
         <div style={{ backgroundColor: '#f8f9fa', padding: '24px', borderRadius: '8px', border: '2px solid #dee2e6' }}>
           <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '16px', textAlign: 'center', color: '#495057' }}>
-            Text Grid Pattern
+            18×18 Grid Pattern
           </h2>
           
           <div style={{ 
@@ -521,16 +540,17 @@ const MongoTextGrid = () => {
             marginBottom: '16px',
             border: '3px solid #333',
             fontFamily: 'Courier, monospace',
-            fontSize: '12px',
+            fontSize: '10px', // Smaller font for 18x18 grid
             lineHeight: '1',
             textAlign: 'center',
-            overflow: 'auto'
+            overflow: 'auto',
+            maxHeight: '400px'
           }}>
             <pre style={{ margin: 0, whiteSpace: 'pre' }}>{gridText}</pre>
           </div>
           
           <div style={{ marginBottom: '16px', fontSize: '14px', color: '#666' }}>
-            <p style={{ margin: '4px 0' }}>Grid Size: {gridData?.grid.length}×{gridData?.grid.length}</p>
+            <p style={{ margin: '4px 0' }}>Grid Size: 18×18 (Fixed)</p>
             <p style={{ margin: '4px 0' }}>ObjectId: <span style={{ fontFamily: 'Courier, monospace', fontSize: '12px' }}>{oid}</span></p>
           </div>
           
@@ -576,7 +596,7 @@ const MongoTextGrid = () => {
         {/* Decoder Section */}
         <div style={{ backgroundColor: '#f8f9fa', padding: '24px', borderRadius: '8px', border: '2px solid #dee2e6' }}>
           <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '16px', textAlign: 'center', color: '#495057' }}>
-            Green Line Grid Decoder
+            18×18 Grid Decoder
           </h2>
           
           {detectionInfo && (
@@ -667,7 +687,7 @@ const MongoTextGrid = () => {
                       cursor: 'pointer'
                     }}
                   >
-                    Scan Green Lines
+                    Scan 18×18 Grid
                   </button>
                   <button 
                     onClick={stopCamera}
@@ -778,17 +798,20 @@ const MongoTextGrid = () => {
         border: '1px solid #ffeaa7'
       }}>
         <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '12px', color: '#856404' }}>
-          Green Line Detection Algorithm
+          18×18 Grid Detection Algorithm
         </h3>
         <div style={{ fontSize: '14px', color: '#856404' }}>
-          <p><strong>How it works:</strong></p>
+          <p><strong>Specially tuned for 18×18 grids:</strong></p>
           <ul style={{ paddingLeft: '20px' }}>
-            <li>Detects grid boundaries using corner detection</li>
-            <li>Samples pixels along \ and / directions looking for green dominance</li>
-            <li>Uses edge detection to find pattern repetition</li>
-            <li>Applies majority voting for error correction</li>
-            <li>Works best with high-contrast green-on-black displays</li>
+            <li>Fixed grid size detection (18×18 cells)</li>
+            <li>Enhanced contrast stretching for better line detection</li>
+            <li>Line projection analysis to find grid boundaries</li>
+            <li>Individual cell pattern analysis for \ and / detection</li>
+            <li>Automatic corner marker recognition</li>
           </ul>
+          <p style={{ marginTop: '8px', fontStyle: 'italic' }}>
+            Works best with clear, high-contrast images of the 18×18 grid pattern
+          </p>
         </div>
       </div>
     </div>
