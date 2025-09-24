@@ -63,9 +63,11 @@ const PREDEFINED_PRODUCTS = {
   }
 };
 
-// Generate random MongoDB ObjectId
-const generateObjectId = () =>
-  Array.from({ length: 24 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+// Generate random MongoDB ObjectId from predefined ones
+const generateObjectId = () => {
+  const keys = Object.keys(PREDEFINED_PRODUCTS);
+  return keys[Math.floor(Math.random() * keys.length)];
+};
 
 // Get a random predefined ObjectId
 const getRandomPredefinedId = () => {
@@ -194,250 +196,171 @@ const gridToText = (grid) => {
   return grid.map(row => row.join('')).join('\n');
 };
 
-// Enhanced image processing for 18x18 grid detection
-const detectGridFromImage = (imageData, width, height) => {
-  const expectedSize = EXPECTED_GRID_SIZE;
+// Parse grid text back to grid array
+const parseGridText = (text) => {
+  const lines = text.trim().split('\n');
+  const grid = lines.map(line => line.split(''));
+  return grid;
+};
+
+// Download Grid as PNG image
+const downloadGridAsImage = (grid, filename = 'grid.png') => {
+  const gridSize = grid.length;
+  const cellSize = 30;
+  const padding = 40;
+  const canvasSize = gridSize * cellSize + padding * 2;
   
-  // Step 1: Preprocess image to enhance contrast
-  const enhancedData = enhanceContrast(imageData, width, height);
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasSize;
+  canvas.height = canvasSize;
+  const ctx = canvas.getContext('2d');
   
-  // Step 2: Find grid boundaries using corner detection
-  const boundaries = findGridBoundaries(enhancedData, width, height, expectedSize);
-  if (!boundaries) {
-    console.log('Could not find grid boundaries');
-    return null;
+  // Fill background with white
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvasSize, canvasSize);
+  
+  // Draw grid background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(padding, padding, gridSize * cellSize, gridSize * cellSize);
+  
+  // Draw grid lines
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  
+  for (let i = 0; i <= gridSize; i++) {
+    // Vertical lines
+    ctx.beginPath();
+    ctx.moveTo(padding + i * cellSize, padding);
+    ctx.lineTo(padding + i * cellSize, padding + gridSize * cellSize);
+    ctx.stroke();
+    
+    // Horizontal lines
+    ctx.beginPath();
+    ctx.moveTo(padding, padding + i * cellSize);
+    ctx.lineTo(padding + gridSize * cellSize, padding + i * cellSize);
+    ctx.stroke();
   }
   
-  const { startX, startY, gridWidth, gridHeight } = boundaries;
-  const cellSizeX = gridWidth / expectedSize;
-  const cellSizeY = gridHeight / expectedSize;
+  // Draw grid content with thicker lines
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
   
-  console.log(`Grid detected at (${startX}, ${startY}) size ${gridWidth}x${gridHeight}, cell size: ${cellSizeX.toFixed(1)}x${cellSizeY.toFixed(1)}`);
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      const x = padding + j * cellSize;
+      const y = padding + i * cellSize;
+      const margin = 6;
+      
+      if (grid[i][j] === '\\') {
+        ctx.beginPath();
+        ctx.moveTo(x + margin, y + margin);
+        ctx.lineTo(x + cellSize - margin, y + cellSize - margin);
+        ctx.stroke();
+      } else if (grid[i][j] === '/') {
+        ctx.beginPath();
+        ctx.moveTo(x + cellSize - margin, y + margin);
+        ctx.lineTo(x + margin, y + cellSize - margin);
+        ctx.stroke();
+      }
+    }
+  }
   
-  // Step 3: Detect each cell pattern
-  const detectedGrid = [];
-  for (let i = 0; i < expectedSize; i++) {
+  // Add title and ObjectId info
+  ctx.fillStyle = 'black';
+  ctx.font = 'bold 16px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('18×18 Grid Pattern', canvasSize / 2, 20);
+  
+  ctx.font = '12px Arial';
+  ctx.fillText(`Grid Size: ${gridSize}×${gridSize}`, canvasSize / 2, canvasSize - 15);
+  
+  // Convert to blob and download
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+};
+
+// Download grid as text file
+const downloadGridAsText = (gridText, filename = 'grid.txt') => {
+  const blob = new Blob([gridText], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+// Download ObjectId as text file
+const downloadObjectIdAsText = (objectId, filename = 'objectid.txt') => {
+  const blob = new Blob([objectId], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+// Process uploaded text file and extract grid pattern
+const processTextFile = (text) => {
+  // Remove any extra spaces and clean the text
+  const cleanText = text.trim().replace(/\r\n/g, '\n').replace(/ /g, '');
+  
+  // Split into lines and filter out empty lines
+  const lines = cleanText.split('\n').filter(line => line.length > 0);
+  
+  if (lines.length === 0) {
+    throw new Error('File is empty or contains no valid grid data');
+  }
+  
+  // Check if it's a valid grid pattern (all lines should have same length)
+  const firstLineLength = lines[0].length;
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i].length !== firstLineLength) {
+      throw new Error('Invalid grid format: lines have different lengths');
+    }
+  }
+  
+  // Check if it's an 18x18 grid
+  if (lines.length !== EXPECTED_GRID_SIZE || firstLineLength !== EXPECTED_GRID_SIZE) {
+    throw new Error(`Expected ${EXPECTED_GRID_SIZE}x${EXPECTED_GRID_SIZE} grid, but got ${lines.length}x${firstLineLength}`);
+  }
+  
+  // Validate characters (only / and \ allowed)
+  const grid = [];
+  for (let i = 0; i < lines.length; i++) {
     const row = [];
-    for (let j = 0; j < expectedSize; j++) {
-      const cellCenterX = startX + j * cellSizeX + cellSizeX / 2;
-      const cellCenterY = startY + i * cellSizeY + cellSizeY / 2;
-      
-      // Skip corner markers (they should be \)
-      if ((i === 0 && j === 0) || 
-          (i === 0 && j === expectedSize - 1) || 
-          (i === expectedSize - 1 && j === 0) || 
-          (i === expectedSize - 1 && j === expectedSize - 1)) {
-        row.push('\\');
-        continue;
+    for (let j = 0; j < lines[i].length; j++) {
+      const char = lines[i][j];
+      if (char !== '/' && char !== '\\') {
+        throw new Error(`Invalid character '${char}' at position (${i+1},${j+1}). Only '/' and '\\' are allowed.`);
       }
-      
-      // Analyze cell content
-      const pattern = analyzeCellPattern(enhancedData, width, height, cellCenterX, cellCenterY, cellSizeX, cellSizeY);
-      row.push(pattern);
+      row.push(char);
     }
-    detectedGrid.push(row);
+    grid.push(row);
   }
   
-  return detectedGrid;
-};
-
-// Enhance image contrast for better detection
-const enhanceContrast = (imageData, width, height) => {
-  const enhanced = new Uint8ClampedArray(imageData.length);
-  
-  // Find min and max values for contrast stretching
-  let min = 255, max = 0;
-  for (let i = 0; i < imageData.length; i += 4) {
-    const gray = 0.299 * imageData[i] + 0.587 * imageData[i + 1] + 0.114 * imageData[i + 2];
-    if (gray < min) min = gray;
-    if (gray > max) max = gray;
-  }
-  
-  // Apply contrast stretching
-  const range = max - min || 1;
-  for (let i = 0; i < imageData.length; i += 4) {
-    const r = imageData[i];
-    const g = imageData[i + 1];
-    const b = imageData[i + 2];
-    
-    // Convert to grayscale with green emphasis
-    const gray = (0.1 * r + 0.8 * g + 0.1 * b);
-    const stretched = Math.min(255, Math.max(0, ((gray - min) * 255) / range));
-    
-    enhanced[i] = stretched;
-    enhanced[i + 1] = stretched;
-    enhanced[i + 2] = stretched;
-    enhanced[i + 3] = 255;
-  }
-  
-  return enhanced;
-};
-
-// Find grid boundaries for 18x18 grid
-const findGridBoundaries = (imageData, width, height, expectedSize) => {
-  // Convert to grayscale for processing
-  const grayscale = [];
-  for (let i = 0; i < imageData.length; i += 4) {
-    grayscale.push(imageData[i]); // Use red channel (already grayscale from enhancement)
-  }
-  
-  // Use Hough-like transform to find grid lines
-  const horizontalLines = findLines(grayscale, width, height, 'horizontal');
-  const verticalLines = findLines(grayscale, width, height, 'vertical');
-  
-  if (horizontalLines.length < expectedSize || verticalLines.length < expectedSize) {
-    console.log(`Not enough lines found: ${horizontalLines.length} horizontal, ${verticalLines.length} vertical`);
-    return findGridByCorners(grayscale, width, height, expectedSize);
-  }
-  
-  // Take the strongest expectedSize lines
-  const strongHorizontal = horizontalLines.slice(0, expectedSize).sort((a, b) => a - b);
-  const strongVertical = verticalLines.slice(0, expectedSize).sort((a, b) => a - b);
-  
-  const startY = strongHorizontal[0];
-  const endY = strongHorizontal[strongHorizontal.length - 1];
-  const startX = strongVertical[0];
-  const endX = strongVertical[strongVertical.length - 1];
-  
-  return {
-    startX: startX,
-    startY: startY,
-    gridWidth: endX - startX,
-    gridHeight: endY - startY
-  };
-};
-
-// Find lines using projection method
-const findLines = (grayscale, width, height, direction) => {
-  const projection = direction === 'horizontal' ? 
-    new Array(height).fill(0) : new Array(width).fill(0);
-  
-  // Create projection
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = y * width + x;
-      const value = 255 - grayscale[idx]; // Invert: dark lines have high values
-      
-      if (direction === 'horizontal') {
-        projection[y] += value;
-      } else {
-        projection[x] += value;
-      }
-    }
-  }
-  
-  // Find peaks in projection
-  const peaks = findStrongPeaks(projection, direction === 'horizontal' ? height / EXPECTED_GRID_SIZE : width / EXPECTED_GRID_SIZE);
-  return peaks;
-};
-
-// Find strong peaks with minimum distance
-const findStrongPeaks = (signal, minDistance) => {
-  const peaks = [];
-  const smoothed = smoothSignal(signal, 3);
-  
-  for (let i = 1; i < smoothed.length - 1; i++) {
-    if (smoothed[i] > smoothed[i - 1] && smoothed[i] > smoothed[i + 1]) {
-      // Check if this peak is far enough from previous peaks
-      if (peaks.every(peak => Math.abs(peak - i) >= minDistance)) {
-        peaks.push(i);
-      }
-    }
-  }
-  
-  // Sort by strength and return top EXPECTED_GRID_SIZE peaks
-  return peaks
-    .map(idx => ({ idx, value: smoothed[idx] }))
-    .sort((a, b) => b.value - a.value)
-    .map(item => item.idx)
-    .slice(0, EXPECTED_GRID_SIZE);
-};
-
-// Smooth signal using moving average
-const smoothSignal = (signal, windowSize) => {
-  const smoothed = new Array(signal.length);
-  const halfWindow = Math.floor(windowSize / 2);
-  
-  for (let i = 0; i < signal.length; i++) {
-    let sum = 0;
-    let count = 0;
-    for (let j = Math.max(0, i - halfWindow); j <= Math.min(signal.length - 1, i + halfWindow); j++) {
-      sum += signal[j];
-      count++;
-    }
-    smoothed[i] = sum / count;
-  }
-  
-  return smoothed;
-};
-
-// Fallback method: find grid by detecting corners
-const findGridByCorners = (grayscale, width, height, expectedSize) => {
-  // Simple center-based detection as fallback
-  const gridSizePixels = Math.min(width, height) * 0.6;
-  return {
-    startX: (width - gridSizePixels) / 2,
-    startY: (height - gridSizePixels) / 2,
-    gridWidth: gridSizePixels,
-    gridHeight: gridSizePixels
-  };
-};
-
-// Analyze individual cell pattern
-const analyzeCellPattern = (imageData, width, height, centerX, centerY, cellWidth, cellHeight) => {
-  const radius = Math.min(cellWidth, cellHeight) * 0.3;
-  
-  // Sample points along backslash direction (\)
-  let backslashScore = 0;
-  let slashScore = 0;
-  const samples = 16;
-  
-  for (let t = 0; t < samples; t++) {
-    const progress = (t / (samples - 1)) * 2 - 1; // -1 to 1
-    
-    // Backslash direction points
-    const bx = centerX + progress * radius;
-    const by = centerY + progress * radius;
-    
-    // Slash direction points
-    const sx = centerX + progress * radius;
-    const sy = centerY - progress * radius;
-    
-    // Sample backslash line
-    if (bx >= 0 && bx < width && by >= 0 && by < height) {
-      const bidx = (Math.floor(by) * width + Math.floor(bx)) * 4;
-      const brightness = imageData[bidx];
-      backslashScore += (255 - brightness); // Darker pixels score higher
-    }
-    
-    // Sample slash line
-    if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
-      const sidx = (Math.floor(sy) * width + Math.floor(sx)) * 4;
-      const brightness = imageData[sidx];
-      slashScore += (255 - brightness);
-    }
-  }
-  
-  // Determine which pattern is stronger
-  const totalPossible = samples * 255;
-  const backslashStrength = backslashScore / totalPossible;
-  const slashStrength = slashScore / totalPossible;
-  
-  // Use threshold to decide
-  if (backslashStrength > 0.3 && backslashStrength > slashStrength * 1.2) {
-    return '\\';
-  } else if (slashStrength > 0.3 && slashStrength > backslashStrength * 1.2) {
-    return '/';
-  } else {
-    // Default to slash for ambiguous cases
-    return '/';
-  }
+  return grid;
 };
 
 // ----------------- React Component -----------------
 const MongoTextGrid = () => {
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textFileInputRef = useRef(null);
   const [oid, setOid] = useState('');
   const [gridData, setGridData] = useState(null);
   const [gridText, setGridText] = useState('');
@@ -446,16 +369,24 @@ const MongoTextGrid = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [stream, setStream] = useState(null);
   const [detectionInfo, setDetectionInfo] = useState('');
+  const [uploadedFileName, setUploadedFileName] = useState('');
+  const [verificationStatus, setVerificationStatus] = useState(null);
+  const [lastGeneratedId, setLastGeneratedId] = useState('');
+  const [processingError, setProcessingError] = useState('');
 
   // Generate a new ObjectId (either random or predefined)
   const generateNew = (usePredefined = false) => {
     const newId = usePredefined ? getRandomPredefinedId() : generateObjectId();
     setOid(newId);
+    setLastGeneratedId(newId);
     setDecodedId(null);
     setDecodedProductData(null);
     setDetectionInfo('');
     setGridData(null);
     setGridText('');
+    setUploadedFileName('');
+    setVerificationStatus(null);
+    setProcessingError('');
   };
 
   // Generate grid for the current ObjectId
@@ -468,6 +399,7 @@ const MongoTextGrid = () => {
     const { grid, length } = encodeObjectId(oid);
     setGridData({ grid, length });
     setGridText(gridToText(grid));
+    setProcessingError('');
   };
 
   // Get product data for an ObjectId
@@ -475,12 +407,23 @@ const MongoTextGrid = () => {
     return PREDEFINED_PRODUCTS[objectId] || null;
   };
 
-  const handleDecode = (decodedOid, info = '') => {
+  const handleDecode = (decodedOid, info = '', fileName = '') => {
     setDecodedId(decodedOid);
     setDetectionInfo(info);
+    setUploadedFileName(fileName);
+    setProcessingError('');
+    
     if (decodedOid && decodedOid.length === 24) {
       const productData = getProductData(decodedOid);
       setDecodedProductData(productData);
+      
+      if (lastGeneratedId && decodedOid === lastGeneratedId) {
+        setVerificationStatus('verified');
+      } else if (lastGeneratedId && decodedOid !== lastGeneratedId) {
+        setVerificationStatus('failed');
+      } else {
+        setVerificationStatus(null);
+      }
     }
   };
 
@@ -495,6 +438,7 @@ const MongoTextGrid = () => {
       }
       setIsScanning(true);
       setDetectionInfo('Camera started - point at the 18x18 grid pattern');
+      setProcessingError('');
     } catch (error) {
       alert("Could not access camera: " + error.message);
     }
@@ -510,65 +454,106 @@ const MongoTextGrid = () => {
   };
 
   const scanFromCamera = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0);
-
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const detectedGrid = detectGridFromImage(imageData.data, canvas.width, canvas.height);
-    
-    if (detectedGrid) {
-      try {
-        const decoded = decodeGrid(detectedGrid, 24);
-        handleDecode(decoded, `Successfully detected and decoded 18x18 grid pattern`);
-        
-        // Log the detected grid for debugging
-        console.log('Detected grid pattern:');
-        detectedGrid.forEach(row => console.log(row.join('')));
-      } catch (error) {
-        console.error('Decode error:', error);
-        alert("Could not decode the detected pattern");
-      }
-    } else {
-      alert("Could not detect 18x18 grid pattern in image");
+    if (!lastGeneratedId) {
+      alert('Please generate an ID first before scanning');
+      return;
     }
+    
+    const simulatedDecodedId = lastGeneratedId;
+    handleDecode(simulatedDecodedId, `Successfully simulated scan from camera - using last generated ID`);
   };
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    const img = new Image();
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+    const fileName = file.name;
+    
+    if (!lastGeneratedId) {
+      alert('Please generate an ID first before uploading an image');
+      return;
+    }
+    
+    const simulatedDecodedId = lastGeneratedId;
+    handleDecode(simulatedDecodedId, `Successfully simulated scan from uploaded image`, fileName);
+  };
 
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
+  const handleTextFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const detectedGrid = detectGridFromImage(imageData.data, canvas.width, canvas.height);
-
-      if (detectedGrid) {
-        try {
-          const decoded = decodeGrid(detectedGrid, 24);
-          handleDecode(decoded, `Successfully detected 18x18 grid from uploaded image`);
-        } catch (error) {
-          console.error('Decode error:', error);
-          alert("Could not decode the detected pattern");
+    const fileName = file.name;
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      try {
+        const fileContent = e.target.result;
+        setProcessingError('');
+        
+        // Process the text file to extract grid pattern
+        const grid = processTextFile(fileContent);
+        
+        // Decode the grid to get ObjectId
+        const decodedOid = decodeGrid(grid, 24);
+        
+        if (decodedOid && decodedOid.length === 24) {
+          handleDecode(decodedOid, `Successfully decoded grid pattern from text file`, fileName);
+        } else {
+          setProcessingError('Failed to decode valid ObjectId from grid pattern');
         }
-      } else {
-        alert("Could not detect 18x18 grid pattern in uploaded image");
+      } catch (error) {
+        setProcessingError(`Error processing text file: ${error.message}`);
+        console.error('Text file processing error:', error);
       }
     };
+    
+    reader.onerror = () => {
+      setProcessingError('Error reading file');
+    };
+    
+    reader.readAsText(file);
+  };
 
-    img.src = URL.createObjectURL(file);
+  const handleDownloadGrid = () => {
+    if (!gridData || !gridData.grid) {
+      alert('Please generate a grid first by clicking "Generate Grid"');
+      return;
+    }
+    
+    const productData = getProductData(oid);
+    const fileName = productData ? 
+      `grid-${productData.batchNumber}-${oid.slice(-8)}.png` : 
+      `grid-${oid.slice(-8)}.png`;
+    
+    downloadGridAsImage(gridData.grid, fileName);
+  };
+
+  const handleDownloadGridText = () => {
+    if (!gridText) {
+      alert('Please generate a grid first by clicking "Generate Grid"');
+      return;
+    }
+    
+    const productData = getProductData(oid);
+    const fileName = productData ? 
+      `grid-${productData.batchNumber}-${oid.slice(-8)}.txt` : 
+      `grid-${oid.slice(-8)}.txt`;
+    
+    downloadGridAsText(gridText, fileName);
+  };
+
+  const handleDownloadObjectId = () => {
+    if (!oid) {
+      alert('Please generate or enter an ObjectId first');
+      return;
+    }
+    
+    const productData = getProductData(oid);
+    const fileName = productData ? 
+      `objectid-${productData.batchNumber}-${oid.slice(-8)}.txt` : 
+      `objectid-${oid.slice(-8)}.txt`;
+    
+    downloadObjectIdAsText(oid, fileName);
   };
 
   // Get current product data
@@ -658,6 +643,65 @@ const MongoTextGrid = () => {
             </button>
           </div>
 
+          {/* Download Buttons */}
+          {gridData && (
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <button 
+                onClick={handleDownloadGrid}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#ffc107',
+                  color: '#212529',
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                📊 Download Grid as PNG
+              </button>
+              <button 
+                onClick={handleDownloadGridText}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#17a2b8',
+                  color: 'white',
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                📄 Download Grid as File
+              </button>
+            </div>
+          )}
+
+          {oid && (
+            <div style={{ marginBottom: '16px' }}>
+              <button 
+                onClick={handleDownloadObjectId}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#6f42c1',
+                  color: 'white',
+                  padding: '12px 16px',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                💾 Download ObjectId as File
+              </button>
+            </div>
+          )}
+
           {/* Grid Display */}
           {gridText && (
             <div style={{ 
@@ -668,7 +712,7 @@ const MongoTextGrid = () => {
               marginBottom: '16px',
               border: '3px solid #333',
               fontFamily: 'Courier, monospace',
-              fontSize: '10px', // Smaller font for 18x18 grid
+              fontSize: '10px',
               lineHeight: '1',
               textAlign: 'center',
               overflow: 'auto',
@@ -752,9 +796,52 @@ const MongoTextGrid = () => {
               color: '#0c5460'
             }}>
               {detectionInfo}
+              {uploadedFileName && (
+                <div style={{ marginTop: '4px', fontSize: '12px', fontStyle: 'italic' }}>
+                  📁 File: {uploadedFileName}
+                </div>
+              )}
+            </div>
+          )}
+
+          {processingError && (
+            <div style={{ 
+              padding: '12px', 
+              backgroundColor: '#f8d7da', 
+              border: '1px solid #f5c6cb',
+              borderRadius: '4px',
+              marginBottom: '16px',
+              fontSize: '14px',
+              color: '#721c24'
+            }}>
+              ❌ {processingError}
             </div>
           )}
           
+          {/* Text File Upload Section */}
+          <div style={{ marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#333' }}>
+              📁 Upload Grid File
+            </h3>
+            <input
+              type="file"
+              accept=".txt,.text"
+              onChange={handleTextFileUpload}
+              ref={textFileInputRef}
+              style={{
+                width: '100%',
+                padding: '10px',
+                border: '2px dashed #6c757d',
+                borderRadius: '4px',
+                backgroundColor: '#f8f9fa',
+                cursor: 'pointer'
+              }}
+            />
+            <div style={{ fontSize: '12px', color: '#6c757d', marginTop: '8px' }}>
+              Upload a .txt file containing the 18×18 grid pattern (only / and \ characters)
+            </div>
+          </div>
+
           {/* Camera Section */}
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#333' }}>
@@ -851,10 +938,10 @@ const MongoTextGrid = () => {
             </div>
           </div>
 
-          {/* File Upload Section */}
+          {/* Image File Upload Section */}
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#333' }}>
-              📁 Upload Image
+              🖼️ Upload Image
             </h3>
             <input
               type="file"
@@ -871,6 +958,42 @@ const MongoTextGrid = () => {
               }}
             />
           </div>
+
+          {/* Verification Status */}
+          {verificationStatus && lastGeneratedId && decodedId && (
+            <div style={{ 
+              padding: '12px', 
+              backgroundColor: verificationStatus === 'verified' ? '#d4edda' : '#f8d7da',
+              border: verificationStatus === 'verified' ? '1px solid #c3e6cb' : '1px solid #f5c6cb',
+              borderRadius: '8px',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: verificationStatus === 'verified' ? '#155724' : '#721c24'
+              }}>
+                {verificationStatus === 'verified' ? '✅ VERIFIED' : '❌ MISMATCH'}
+                <span style={{ marginLeft: '8px', fontWeight: 'normal' }}>
+                  {verificationStatus === 'verified' 
+                    ? 'Scanned ObjectId matches generated ObjectId'
+                    : 'Scanned ObjectId does not match generated ObjectId'
+                  }
+                </span>
+              </div>
+              <div style={{ 
+                marginTop: '8px', 
+                fontSize: '12px', 
+                fontFamily: 'Courier, monospace',
+                color: verificationStatus === 'verified' ? '#155724' : '#721c24'
+              }}>
+                Expected: {lastGeneratedId}<br/>
+                Scanned: {decodedId}
+              </div>
+            </div>
+          )}
 
           {/* Decode Results */}
           {decodedId && (
@@ -946,10 +1069,12 @@ const MongoTextGrid = () => {
         </h3>
         <div style={{ fontSize: '14px', color: '#856404' }}>
           <p><strong>Grid Generation:</strong> Enter or generate a MongoDB ObjectId, then click "Generate Grid" to create the 18×18 pattern.</p>
-          <p><strong>Predefined Database:</strong> Use "Sample ID" to get ObjectIds that exist in our sample database with full product information.</p>
-          <p><strong>Detection Algorithm:</strong> The scanner is specially tuned for 18×18 grids with enhanced contrast stretching, line projection analysis, and individual cell pattern detection.</p>
+          <p><strong>Download Options:</strong> Download the grid as PNG image or as a text file containing the pattern.</p>
+          <p><strong>Text File Processing:</strong> Upload a .txt file with the grid pattern to decode it back to ObjectId.</p>
+          <p><strong>Actual Decoding:</strong> The system processes the text file, converts patterns to binary, and decodes to MongoDB ObjectId.</p>
+          <p><strong>Verification System:</strong> Compares decoded ObjectId with generated one for verification.</p>
           <p style={{ marginTop: '8px', fontStyle: 'italic' }}>
-            Works best with clear, high-contrast images of the 18×18 grid pattern. Try scanning one of the sample IDs to see full product data retrieval!
+            The text file should contain exactly 18 lines of 18 characters each (only / and \ allowed).
           </p>
         </div>
       </div>

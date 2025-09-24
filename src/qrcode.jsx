@@ -1,131 +1,340 @@
-// context/QRContext.js
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-const QRContext = createContext();
+// QR Generation Utilities (same as before)
+const REDUNDANCY = 3;
+const EXPECTED_GRID_SIZE = 18;
 
-export const QRProvider = ({ children }) => {
-  const [qrCodes, setQrCodes] = useState([]);
-  const [inspections, setInspections] = useState([]);
+const textToBits = (hexStr) => {
+  const bits = [];
+  const bytes = new Uint8Array(hexStr.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+  
+  for (let byte of bytes) {
+    const binaryStr = byte.toString(2).padStart(8, '0');
+    for (let bit of binaryStr) {
+      bits.push(parseInt(bit));
+    }
+  }
+  return bits;
+};
 
-  useEffect(() => {
-    const mockQRCodes = [
-      {
-        id: '1',
-        qrCode: 'QR:ERC:001:VendorA',
-        itemType: 'ERC',
-        vendor: 'Vendor A',
-        lotNumber: 'LOT-2024-001',
-        manufactureDate: '2024-01-15',
-        warrantyExpiry: '2026-01-15',
-        status: 'installed',
-        currentLocation: 'Track Section 12B',
-        gpsCoordinates: { lat: 28.6139, lng: 77.2090 }
-      },
-      {
-        id: '2',
-        qrCode: 'QR:Sleeper:002:VendorB',
-        itemType: 'Sleeper',
-        vendor: 'Vendor B',
-        lotNumber: 'LOT-2024-002',
-        manufactureDate: '2024-02-01',
-        warrantyExpiry: '2026-02-01',
-        status: 'in_depot',
-        currentLocation: 'Central Depot'
+const bitsToText = (bits, length) => {
+  const reducedBits = [];
+  for (let i = 0; i < bits.length; i += REDUNDANCY) {
+    const chunk = bits.slice(i, i + REDUNDANCY);
+    const sum = chunk.reduce((a, b) => a + b, 0);
+    reducedBits.push(sum > REDUNDANCY / 2 ? 1 : 0);
+  }
+  
+  const byteStr = reducedBits.join('');
+  const truncatedBits = byteStr.slice(0, length * 4);
+  
+  const bytes = [];
+  for (let i = 0; i < truncatedBits.length; i += 8) {
+    const byteBits = truncatedBits.slice(i, i + 8);
+    if (byteBits.length === 8) {
+      bytes.push(parseInt(byteBits, 2));
+    }
+  }
+  
+  const hexArray = bytes.map(b => b.toString(16).padStart(2, '0'));
+  let result = hexArray.join('');
+  
+  if (result.length < length) {
+    result = result.padEnd(length, '0');
+  } else if (result.length > length) {
+    result = result.slice(0, length);
+  }
+  
+  return result;
+};
+
+const encodeObjectId = (oid) => {
+  const hexStr = oid;
+  const bits = textToBits(hexStr);
+  
+  const expandedBits = [];
+  for (let bit of bits) {
+    for (let i = 0; i < REDUNDANCY; i++) {
+      expandedBits.push(bit);
+    }
+  }
+  
+  const gridSize = EXPECTED_GRID_SIZE;
+  const totalCells = gridSize * gridSize;
+  const dataCells = totalCells - 4;
+  
+  if (expandedBits.length > dataCells) {
+    console.warn(`Too many bits for ${gridSize}x${gridSize} grid. Truncating.`);
+  }
+  
+  const grid = Array.from({ length: gridSize }, () => Array(gridSize).fill('/'));
+  
+  grid[0][0] = '\\';
+  grid[0][gridSize - 1] = '\\';
+  grid[gridSize - 1][0] = '\\';
+  grid[gridSize - 1][gridSize - 1] = '\\';
+  
+  let idx = 0;
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      if ((i === 0 && j === 0) || 
+          (i === 0 && j === gridSize - 1) || 
+          (i === gridSize - 1 && j === 0) || 
+          (i === gridSize - 1 && j === gridSize - 1)) {
+        continue;
       }
-    ];
-    
-    setQrCodes(mockQRCodes);
-  }, []);
+      if (idx < expandedBits.length && idx < dataCells) {
+        grid[i][j] = expandedBits[idx] === 1 ? '\\' : '/';
+        idx++;
+      }
+    }
+  }
+  
+  return { grid, length: hexStr.length };
+};
 
-  const generateQRCodes = async (data) => {
-    const newQRCodes = [];
-    const warrantyExpiry = new Date(data.manufactureDate);
-    warrantyExpiry.setFullYear(warrantyExpiry.getFullYear() + 2);
-    
-    for (let i = 0; i < data.quantity; i++) {
-      const qrCode = {
-        id: Date.now().toString() + i,
-        qrCode: `QR:${data.lotNumber}:${data.itemType}:${data.vendor}:${i}`,
-        itemType: data.itemType,
-        vendor: data.vendor,
-        lotNumber: data.lotNumber,
-        manufactureDate: data.manufactureDate,
-        warrantyExpiry: warrantyExpiry.toISOString().split('T')[0],
-        status: 'manufactured',
-        currentLocation: 'Vendor Facility'
-      };
+const gridToText = (grid) => {
+  return grid.map(row => row.join('')).join('\n');
+};
+
+const downloadGridAsImage = (grid, filename = 'grid.png') => {
+  const gridSize = grid.length;
+  const cellSize = 20;
+  const padding = 30;
+  const canvasSize = gridSize * cellSize + padding * 2;
+  
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasSize;
+  canvas.height = canvasSize;
+  const ctx = canvas.getContext('2d');
+  
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvasSize, canvasSize);
+  
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      const x = padding + j * cellSize;
+      const y = padding + i * cellSize;
+      const margin = 2;
       
-      newQRCodes.push(qrCode);
+      if (grid[i][j] === '\\') {
+        ctx.beginPath();
+        ctx.moveTo(x + margin, y + margin);
+        ctx.lineTo(x + cellSize - margin, y + cellSize - margin);
+        ctx.stroke();
+      } else if (grid[i][j] === '/') {
+        ctx.beginPath();
+        ctx.moveTo(x + cellSize - margin, y + margin);
+        ctx.lineTo(x + margin, y + cellSize - margin);
+        ctx.stroke();
+      }
     }
-    
-    setQrCodes(prev => [...prev, ...newQRCodes]);
-    return newQRCodes;
-  };
+  }
+  
+  ctx.fillStyle = 'black';
+  ctx.font = 'bold 14px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('18×18 Grid QR Code', canvasSize / 2, 20);
+  
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+};
 
-  const getQRDetails = async (qrData) => {
-    const qrCode = qrCodes.find(qr => qr.qrCode === qrData || qr.id === qrData);
-    if (!qrCode) {
-      throw new Error('QR code not found');
+const downloadGridAsText = (gridText, filename = 'grid.txt') => {
+  const blob = new Blob([gridText], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+const QRGenerator = () => {
+  const [batchId, setBatchId] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [generatedCodes, setGeneratedCodes] = useState([]);
+  const [batches, setBatches] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadBatches = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/api/my-batches', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setBatches(data.batches || []);
+      }
+    } catch (error) {
+      console.error('Error loading batches:', error);
     }
-    return qrCode;
   };
 
-  const updateQRStatus = async (id, status) => {
-    setQrCodes(prev => prev.map(qr => 
-      qr.id === id ? { ...qr, status } : qr
-    ));
+  const handleGenerate = async () => {
+    if (!batchId || quantity < 1) {
+      alert('Please select a batch and enter quantity');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/api/generate-qr', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Bearer ${token}`
+        },
+        body: new URLSearchParams({
+          batch_id: batchId,
+          quantity: quantity.toString()
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setGeneratedCodes(data.qr_codes || []);
+        alert(`Successfully generated ${quantity} QR codes!`);
+      } else {
+        alert(data.detail || 'Error generating QR codes');
+      }
+    } catch (error) {
+      alert('Network error generating QR codes');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateInstallation = async (id, installation) => {
-    setQrCodes(prev => prev.map(qr => 
-      qr.id === id ? { 
-        ...qr, 
-        status: 'installed',
-        currentLocation: installation.trackSectionId,
-        gpsCoordinates: installation.gpsCoordinates
-      } : qr
-    ));
-  };
-
-  const addInspection = async (inspection) => {
-    const newInspection = {
-      ...inspection,
-      id: Date.now().toString()
-    };
-    
-    setInspections(prev => [...prev, newInspection]);
-  };
-
-  const getWarrantyAlerts = () => {
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-    
-    return qrCodes.filter(qr => {
-      const expiryDate = new Date(qr.warrantyExpiry);
-      return expiryDate <= thirtyDaysFromNow && expiryDate >= new Date();
+  const downloadAllQRCodes = () => {
+    generatedCodes.forEach((code, index) => {
+      const { grid } = encodeObjectId(code.product_id);
+      downloadGridAsImage(grid, `QR-${code.batch_id}-${index + 1}.png`);
+      downloadGridAsText(gridToText(grid), `QR-${code.batch_id}-${index + 1}.txt`);
     });
+    alert(`Downloaded ${generatedCodes.length} QR codes`);
+  };
+
+  const QRPreview = ({ code, index }) => {
+    const { grid } = encodeObjectId(code.product_id);
+
+    const downloadQR = () => {
+      downloadGridAsImage(grid, `QR-${code.batch_id}-${code.product_id.slice(-8)}.png`);
+      downloadGridAsText(gridToText(grid), `QR-${code.batch_id}-${code.product_id.slice(-8)}.txt`);
+    };
+
+    return (
+      <div className="qr-preview-card">
+        <div className="qr-code-preview">
+          {grid.map((row, i) => (
+            <div key={i} className="qr-row">
+              {row.map((cell, j) => (
+                <div key={j} className={`qr-cell ${cell === '\\' ? 'backslash' : 'slash'}`}>
+                  {cell}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="qr-info">
+          <p><strong>Product ID:</strong> {code.product_id.slice(-8)}</p>
+          <p><strong>Batch:</strong> {code.batch_id}</p>
+          <p><strong>Sequence:</strong> {index + 1}</p>
+        </div>
+        <button onClick={downloadQR} className="download-btn">
+          Download QR
+        </button>
+      </div>
+    );
   };
 
   return (
-    <QRContext.Provider value={{
-      qrCodes,
-      inspections,
-      generateQRCodes,
-      getQRDetails,
-      updateQRStatus,
-      updateInstallation,
-      addInspection,
-      getWarrantyAlerts
-    }}>
-      {children}
-    </QRContext.Provider>
+    <div className="qr-generator">
+      <div className="generator-header">
+        <h3>QR Code Generator</h3>
+        <button onClick={loadBatches} className="btn-secondary">
+          Refresh Batches
+        </button>
+      </div>
+
+      <div className="generator-controls">
+        <div className="control-group">
+          <label>Select Batch:</label>
+          <select 
+            value={batchId} 
+            onChange={(e) => setBatchId(e.target.value)}
+            className="form-select"
+          >
+            <option value="">Select a batch</option>
+            {batches.map(batch => (
+              <option key={batch.batch_id} value={batch.batch_id}>
+                {batch.batch_id} - {batch.material} ({batch.quantity} units)
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="control-group">
+          <label>Quantity:</label>
+          <input
+            type="number"
+            value={quantity}
+            onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+            min="1"
+            max="1000"
+            className="form-input"
+          />
+        </div>
+
+        <button 
+          onClick={handleGenerate} 
+          disabled={loading || !batchId}
+          className="generate-btn"
+        >
+          {loading ? 'Generating...' : 'Generate QR Codes'}
+        </button>
+      </div>
+
+      {generatedCodes.length > 0 && (
+        <div className="qr-results">
+          <div className="results-header">
+            <h4>Generated QR Codes ({generatedCodes.length} codes)</h4>
+            <button onClick={downloadAllQRCodes} className="btn-primary">
+              Download All as ZIP
+            </button>
+          </div>
+
+          <div className="qr-grid">
+            {generatedCodes.map((code, index) => (
+              <QRPreview key={code.product_id} code={code} index={index} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {batches.length === 0 && (
+        <div className="empty-state">
+          <p>No batches found. Create a batch first to generate QR codes.</p>
+        </div>
+      )}
+    </div>
   );
 };
 
-export const useQR = () => {
-  const context = useContext(QRContext);
-  if (context === undefined) {
-    throw new Error('useQR must be used within a QRProvider');
-  }
-  return context;
-};
+export default QRGenerator;

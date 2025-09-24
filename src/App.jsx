@@ -4,7 +4,7 @@ import MongoIdScanner from './mongo';
 import MongoQRApp from './mongo';
 import ObjectIdQRCode from './mongo';
 import MongoTextGrid from './mongo';
-import MongoQRCodeGenerator from './login';
+import MongoQRCodeGenerator from './navbar';
 
 function App() {
   return (
