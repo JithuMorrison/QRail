@@ -4,32 +4,73 @@ import React, { useState, useRef, useEffect } from "react";
 const REDUNDANCY = 3;
 const EXPECTED_GRID_SIZE = 18; // Fixed grid size
 
+// Predefined MongoDB ObjectIds with their data
+const PREDEFINED_PRODUCTS = {
+  "507f1f77bcf86cd799439011": {
+    productId: "507f1f77bcf86cd799439011",
+    material: "Titanium Alloy",
+    manufacturer: "AeroSpace Industries",
+    manufactureDate: "2023-01-15",
+    batchNumber: "AS2301",
+    quality: "Grade A+",
+    weight: "2.3kg",
+    category: "Aircraft Components",
+    location: "Facility A - Bay 12"
+  },
+  "507f191e810c19729de860ea": {
+    productId: "507f191e810c19729de860ea",
+    material: "Carbon Fiber",
+    manufacturer: "TechCorp Advanced",
+    manufactureDate: "2023-02-20",
+    batchNumber: "TC2302",
+    quality: "Grade A",
+    weight: "1.8kg",
+    category: "Automotive Parts",
+    location: "Facility B - Section 5"
+  },
+  "65f3b4a1234567890abcdef0": {
+    productId: "65f3b4a1234567890abcdef0",
+    material: "Stainless Steel",
+    manufacturer: "Industrial Works Ltd",
+    manufactureDate: "2023-03-10",
+    batchNumber: "IW2303",
+    quality: "Grade B+",
+    weight: "5.2kg",
+    category: "Marine Equipment",
+    location: "Facility C - Dock 3"
+  },
+  "65f3b4b2345678901bcdef01": {
+    productId: "65f3b4b2345678901bcdef01",
+    material: "Aluminum 6061",
+    manufacturer: "Precision Manufacturing",
+    manufactureDate: "2023-04-05",
+    batchNumber: "PM2304",
+    quality: "Grade A",
+    weight: "3.1kg",
+    category: "Electronics Housing",
+    location: "Facility D - Clean Room 2"
+  },
+  "65f3b4c3456789012cdef012": {
+    productId: "65f3b4c3456789012cdef012",
+    material: "Copper Alloy",
+    manufacturer: "Electrical Components Co",
+    manufactureDate: "2023-05-12",
+    batchNumber: "EC2305",
+    quality: "Grade A-",
+    weight: "4.7kg",
+    category: "Power Systems",
+    location: "Facility E - Assembly Line 1"
+  }
+};
+
 // Generate random MongoDB ObjectId
 const generateObjectId = () =>
   Array.from({ length: 24 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
 
-// Generate sample product data for a MongoDB ObjectId
-const generateProductData = (oid) => {
-  const materials = ["Steel", "Aluminum", "Plastic", "Carbon Fiber", "Titanium", "Copper", "Brass"];
-  const manufacturers = ["TechCorp", "IndustrialWorks", "PrecisionMfg", "GlobalParts", "QualityGoods"];
-  
-  const seed = parseInt(oid.slice(0, 8), 16);
-  const materialIndex = seed % materials.length;
-  const manufacturerIndex = Math.floor(seed / 1000) % manufacturers.length;
-  
-  const baseDate = new Date('2020-01-01');
-  const randomDays = (seed % 1000) + 200;
-  const manufactureDate = new Date(baseDate.getTime() + randomDays * 24 * 60 * 60 * 1000);
-  
-  return {
-    productId: oid,
-    material: materials[materialIndex],
-    manufacturer: manufacturers[manufacturerIndex],
-    manufactureDate: manufactureDate.toLocaleDateString(),
-    batchNumber: `BT${(seed % 9999).toString().padStart(4, '0')}`,
-    quality: seed % 2 === 0 ? "Grade A" : "Grade B",
-    weight: `${((seed % 50) + 10) / 10}kg`
-  };
+// Get a random predefined ObjectId
+const getRandomPredefinedId = () => {
+  const ids = Object.keys(PREDEFINED_PRODUCTS);
+  return ids[Math.floor(Math.random() * ids.length)];
 };
 
 // Convert hex string to bits
@@ -382,8 +423,6 @@ const analyzeCellPattern = (imageData, width, height, centerX, centerY, cellWidt
   const backslashStrength = backslashScore / totalPossible;
   const slashStrength = slashScore / totalPossible;
   
-  console.log(`Cell at (${Math.round(centerX)}, ${Math.round(centerY)}): \\=${backslashStrength.toFixed(3)}, /=${slashStrength.toFixed(3)}`);
-  
   // Use threshold to decide
   if (backslashStrength > 0.3 && backslashStrength > slashStrength * 1.2) {
     return '\\';
@@ -399,35 +438,49 @@ const analyzeCellPattern = (imageData, width, height, centerX, centerY, cellWidt
 const MongoTextGrid = () => {
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
-  const [oid, setOid] = useState(generateObjectId());
+  const [oid, setOid] = useState('');
   const [gridData, setGridData] = useState(null);
   const [gridText, setGridText] = useState('');
-  const [productData, setProductData] = useState(null);
   const [decodedId, setDecodedId] = useState(null);
   const [decodedProductData, setDecodedProductData] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
   const [stream, setStream] = useState(null);
   const [detectionInfo, setDetectionInfo] = useState('');
 
-  useEffect(() => {
-    const { grid, length } = encodeObjectId(oid);
-    setGridData({ grid, length });
-    setGridText(gridToText(grid));
-    setProductData(generateProductData(oid));
-  }, [oid]);
-
-  const generateNew = () => {
-    setOid(generateObjectId());
+  // Generate a new ObjectId (either random or predefined)
+  const generateNew = (usePredefined = false) => {
+    const newId = usePredefined ? getRandomPredefinedId() : generateObjectId();
+    setOid(newId);
     setDecodedId(null);
     setDecodedProductData(null);
     setDetectionInfo('');
+    setGridData(null);
+    setGridText('');
+  };
+
+  // Generate grid for the current ObjectId
+  const generateGrid = () => {
+    if (!oid || oid.length !== 24) {
+      alert('Please enter or generate a valid 24-character MongoDB ObjectId');
+      return;
+    }
+    
+    const { grid, length } = encodeObjectId(oid);
+    setGridData({ grid, length });
+    setGridText(gridToText(grid));
+  };
+
+  // Get product data for an ObjectId
+  const getProductData = (objectId) => {
+    return PREDEFINED_PRODUCTS[objectId] || null;
   };
 
   const handleDecode = (decodedOid, info = '') => {
     setDecodedId(decodedOid);
     setDetectionInfo(info);
     if (decodedOid && decodedOid.length === 24) {
-      setDecodedProductData(generateProductData(decodedOid));
+      const productData = getProductData(decodedOid);
+      setDecodedProductData(productData);
     }
   };
 
@@ -518,6 +571,9 @@ const MongoTextGrid = () => {
     img.src = URL.createObjectURL(file);
   };
 
+  // Get current product data
+  const currentProductData = getProductData(oid);
+
   return (
     <div style={{ padding: '32px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'Arial, sans-serif' }}>
       <h1 style={{ fontSize: '28px', fontWeight: 'bold', textAlign: 'center', marginBottom: '32px', color: '#333' }}>
@@ -529,68 +585,154 @@ const MongoTextGrid = () => {
         {/* Generator Section */}
         <div style={{ backgroundColor: '#f8f9fa', padding: '24px', borderRadius: '8px', border: '2px solid #dee2e6' }}>
           <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '16px', textAlign: 'center', color: '#495057' }}>
-            18×18 Grid Pattern
+            18×18 Grid Generator
           </h2>
           
-          <div style={{ 
-            backgroundColor: '#1a1a1a', 
-            color: '#00ff00', 
-            padding: '16px', 
-            borderRadius: '8px', 
-            marginBottom: '16px',
-            border: '3px solid #333',
-            fontFamily: 'Courier, monospace',
-            fontSize: '10px', // Smaller font for 18x18 grid
-            lineHeight: '1',
-            textAlign: 'center',
-            overflow: 'auto',
-            maxHeight: '400px'
-          }}>
-            <pre style={{ margin: 0, whiteSpace: 'pre' }}>{gridText}</pre>
+          {/* ObjectId Input */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#333' }}>
+              MongoDB ObjectId:
+            </label>
+            <input
+              type="text"
+              value={oid}
+              onChange={(e) => setOid(e.target.value)}
+              placeholder="Enter 24-character ObjectId or generate one"
+              style={{
+                width: '100%',
+                padding: '10px',
+                border: '1px solid #ced4da',
+                borderRadius: '4px',
+                fontFamily: 'Courier, monospace',
+                fontSize: '12px'
+              }}
+            />
           </div>
           
-          <div style={{ marginBottom: '16px', fontSize: '14px', color: '#666' }}>
-            <p style={{ margin: '4px 0' }}>Grid Size: 18×18 (Fixed)</p>
-            <p style={{ margin: '4px 0' }}>ObjectId: <span style={{ fontFamily: 'Courier, monospace', fontSize: '12px' }}>{oid}</span></p>
+          {/* Generate Buttons */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <button 
+              onClick={() => generateNew(false)}
+              style={{
+                flex: 1,
+                backgroundColor: '#6c757d',
+                color: 'white',
+                padding: '10px 16px',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              Random ID
+            </button>
+            <button 
+              onClick={() => generateNew(true)}
+              style={{
+                flex: 1,
+                backgroundColor: '#28a745',
+                color: 'white',
+                padding: '10px 16px',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              Sample ID
+            </button>
+            <button 
+              onClick={generateGrid}
+              style={{
+                flex: 1,
+                backgroundColor: '#007bff',
+                color: 'white',
+                padding: '10px 16px',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              Generate Grid
+            </button>
           </div>
-          
-          <button 
-            onClick={generateNew}
-            style={{
-              width: '100%',
-              backgroundColor: '#007bff',
-              color: 'white',
-              padding: '12px 16px',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '16px',
-              cursor: 'pointer'
-            }}
-          >
-            Generate New ObjectId
-          </button>
 
-          {productData && (
+          {/* Grid Display */}
+          {gridText && (
             <div style={{ 
-              marginTop: '24px', 
+              backgroundColor: '#1a1a1a', 
+              color: '#00ff00', 
+              padding: '16px', 
+              borderRadius: '8px', 
+              marginBottom: '16px',
+              border: '3px solid #333',
+              fontFamily: 'Courier, monospace',
+              fontSize: '10px', // Smaller font for 18x18 grid
+              lineHeight: '1',
+              textAlign: 'center',
+              overflow: 'auto',
+              maxHeight: '400px'
+            }}>
+              <pre style={{ margin: 0, whiteSpace: 'pre' }}>{gridText}</pre>
+            </div>
+          )}
+          
+          {gridData && (
+            <div style={{ marginBottom: '16px', fontSize: '14px', color: '#666' }}>
+              <p style={{ margin: '4px 0' }}>Grid Size: 18×18 (Fixed)</p>
+              <p style={{ margin: '4px 0' }}>ObjectId: <span style={{ fontFamily: 'Courier, monospace', fontSize: '12px' }}>{oid}</span></p>
+            </div>
+          )}
+
+          {/* Product Information */}
+          {currentProductData && gridText && (
+            <div style={{ 
               padding: '16px', 
               backgroundColor: '#e3f2fd', 
               borderRadius: '8px',
               border: '1px solid #bbdefb'
             }}>
               <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#1565c0' }}>
-                Product Information
+                📦 Product Information
               </h3>
               <div style={{ fontSize: '14px', color: '#333' }}>
-                <p style={{ margin: '4px 0' }}><strong>Material:</strong> {productData.material}</p>
-                <p style={{ margin: '4px 0' }}><strong>Manufacturer:</strong> {productData.manufacturer}</p>
-                <p style={{ margin: '4px 0' }}><strong>Manufacture Date:</strong> {productData.manufactureDate}</p>
-                <p style={{ margin: '4px 0' }}><strong>Batch Number:</strong> {productData.batchNumber}</p>
-                <p style={{ margin: '4px 0' }}><strong>Quality:</strong> {productData.quality}</p>
-                <p style={{ margin: '4px 0' }}><strong>Weight:</strong> {productData.weight}</p>
+                <p style={{ margin: '4px 0' }}><strong>Material:</strong> {currentProductData.material}</p>
+                <p style={{ margin: '4px 0' }}><strong>Manufacturer:</strong> {currentProductData.manufacturer}</p>
+                <p style={{ margin: '4px 0' }}><strong>Manufacture Date:</strong> {currentProductData.manufactureDate}</p>
+                <p style={{ margin: '4px 0' }}><strong>Batch Number:</strong> {currentProductData.batchNumber}</p>
+                <p style={{ margin: '4px 0' }}><strong>Quality:</strong> {currentProductData.quality}</p>
+                <p style={{ margin: '4px 0' }}><strong>Weight:</strong> {currentProductData.weight}</p>
+                <p style={{ margin: '4px 0' }}><strong>Category:</strong> {currentProductData.category}</p>
+                <p style={{ margin: '4px 0' }}><strong>Location:</strong> {currentProductData.location}</p>
               </div>
             </div>
           )}
+
+          {/* Show predefined IDs info */}
+          <div style={{ 
+            marginTop: '16px', 
+            padding: '12px', 
+            backgroundColor: '#fff3cd', 
+            borderRadius: '8px',
+            border: '1px solid #ffeaa7'
+          }}>
+            <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#856404' }}>
+              Available Sample IDs:
+            </h4>
+            <div style={{ fontSize: '12px', color: '#856404' }}>
+              {Object.keys(PREDEFINED_PRODUCTS).map((id, index) => (
+                <div key={id} style={{ marginBottom: '2px' }}>
+                  <code style={{ backgroundColor: 'rgba(255,255,255,0.5)', padding: '1px 4px', borderRadius: '2px' }}>
+                    {id}
+                  </code>
+                  <span style={{ marginLeft: '8px', fontSize: '11px' }}>
+                    ({PREDEFINED_PRODUCTS[id].category})
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Decoder Section */}
@@ -616,7 +758,7 @@ const MongoTextGrid = () => {
           {/* Camera Section */}
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#333' }}>
-              Camera Scanner
+              📷 Camera Scanner
             </h3>
             <div style={{ 
               backgroundColor: '#e9ecef', 
@@ -712,7 +854,7 @@ const MongoTextGrid = () => {
           {/* File Upload Section */}
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#333' }}>
-              Upload Image
+              📁 Upload Image
             </h3>
             <input
               type="file"
@@ -734,17 +876,17 @@ const MongoTextGrid = () => {
           {decodedId && (
             <div style={{ 
               padding: '16px', 
-              backgroundColor: decodedId === oid ? '#d4edda' : '#f8d7da',
-              border: decodedId === oid ? '1px solid #c3e6cb' : '1px solid #f5c6cb',
+              backgroundColor: decodedProductData ? '#d4edda' : '#f8d7da',
+              border: decodedProductData ? '1px solid #c3e6cb' : '1px solid #f5c6cb',
               borderRadius: '8px'
             }}>
               <h3 style={{ 
                 fontSize: '16px', 
                 fontWeight: '600', 
                 marginBottom: '12px',
-                color: decodedId === oid ? '#155724' : '#721c24'
+                color: decodedProductData ? '#155724' : '#721c24'
               }}>
-                Decoded Result
+                🔍 Decoded Result
               </h3>
               <p style={{ 
                 fontFamily: 'Courier, monospace', 
@@ -760,9 +902,9 @@ const MongoTextGrid = () => {
               <p style={{ 
                 fontSize: '14px', 
                 margin: '8px 0',
-                color: decodedId === oid ? '#155724' : '#721c24'
+                color: decodedProductData ? '#155724' : '#721c24'
               }}>
-                {decodedId === oid ? "✅ Perfect Match!" : "❌ Different ObjectId"}
+                {decodedProductData ? "✅ Found in Database!" : "❌ Unknown ObjectId"}
               </p>
               
               {decodedProductData && (
@@ -773,7 +915,7 @@ const MongoTextGrid = () => {
                   borderRadius: '4px'
                 }}>
                   <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#333' }}>
-                    Product Details
+                    📦 Product Details
                   </h4>
                   <div style={{ fontSize: '13px', color: '#333' }}>
                     <p style={{ margin: '2px 0' }}><strong>Material:</strong> {decodedProductData.material}</p>
@@ -782,6 +924,8 @@ const MongoTextGrid = () => {
                     <p style={{ margin: '2px 0' }}><strong>Batch:</strong> {decodedProductData.batchNumber}</p>
                     <p style={{ margin: '2px 0' }}><strong>Quality:</strong> {decodedProductData.quality}</p>
                     <p style={{ margin: '2px 0' }}><strong>Weight:</strong> {decodedProductData.weight}</p>
+                    <p style={{ margin: '2px 0' }}><strong>Category:</strong> {decodedProductData.category}</p>
+                    <p style={{ margin: '2px 0' }}><strong>Location:</strong> {decodedProductData.location}</p>
                   </div>
                 </div>
               )}
@@ -798,19 +942,14 @@ const MongoTextGrid = () => {
         border: '1px solid #ffeaa7'
       }}>
         <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '12px', color: '#856404' }}>
-          18×18 Grid Detection Algorithm
+          🔧 How It Works
         </h3>
         <div style={{ fontSize: '14px', color: '#856404' }}>
-          <p><strong>Specially tuned for 18×18 grids:</strong></p>
-          <ul style={{ paddingLeft: '20px' }}>
-            <li>Fixed grid size detection (18×18 cells)</li>
-            <li>Enhanced contrast stretching for better line detection</li>
-            <li>Line projection analysis to find grid boundaries</li>
-            <li>Individual cell pattern analysis for \ and / detection</li>
-            <li>Automatic corner marker recognition</li>
-          </ul>
+          <p><strong>Grid Generation:</strong> Enter or generate a MongoDB ObjectId, then click "Generate Grid" to create the 18×18 pattern.</p>
+          <p><strong>Predefined Database:</strong> Use "Sample ID" to get ObjectIds that exist in our sample database with full product information.</p>
+          <p><strong>Detection Algorithm:</strong> The scanner is specially tuned for 18×18 grids with enhanced contrast stretching, line projection analysis, and individual cell pattern detection.</p>
           <p style={{ marginTop: '8px', fontStyle: 'italic' }}>
-            Works best with clear, high-contrast images of the 18×18 grid pattern
+            Works best with clear, high-contrast images of the 18×18 grid pattern. Try scanning one of the sample IDs to see full product data retrieval!
           </p>
         </div>
       </div>
