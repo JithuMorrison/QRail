@@ -1,65 +1,70 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { authService } from './services';
 
 const Login = ({ onLogin }) => {
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: ''
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const response = await fetch('http://localhost:5000/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+    setLoading(true);
+    setError('');
 
-      const data = await response.json();
-      if (response.ok) {
-        onLogin(data.user, data.token);
-      } else {
-        setError(data.error);
-      }
+    try {
+      const response = await authService.login(formData);
+      onLogin(response.user, response.token);
+      navigate(`/${response.user.role}`);
     } catch (error) {
-      setError('Server error');
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="auth-container">
       <div className="auth-form">
-        <h2>Login to Inventory System</h2>
-        {error && <div className="error">{error}</div>}
+        <h2>Login</h2>
         <form onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="Username"
-            value={formData.username}
-            onChange={(e) => setFormData({...formData, username: e.target.value})}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={(e) => setFormData({...formData, password: e.target.value})}
-            required
-          />
-          <button type="submit">Login</button>
+          <div className="form-group">
+            <label>Email:</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Password:</label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          {error && <div className="error-message">{error}</div>}
+          <button type="submit" disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
         </form>
         <p>Don't have an account? <Link to="/register">Register here</Link></p>
-        <div className="role-info">
-          <h4>Available Roles:</h4>
-          <ul>
-            <li><strong>Vendor:</strong> Create batches and generate QR codes</li>
-            <li><strong>Depot:</strong> Scan and track inventory in depot</li>
-            <li><strong>Installation:</strong> Scan during installation</li>
-            <li><strong>Inspector:</strong> Final inspection scans</li>
-          </ul>
-        </div>
       </div>
     </div>
   );

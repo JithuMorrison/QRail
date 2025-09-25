@@ -1,248 +1,346 @@
-import React, { useState, useEffect } from 'react';
-import QRScanner from './qrscanner';
+import React, { useState } from 'react';
+import QRScanner from './qscan';
+import { inspectorService } from './inspserv';
 
-const InspectorDashboard = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('inspect');
-  const [inspections, setInspections] = useState([]);
-  const [qualityStats, setQualityStats] = useState({});
+const InspectorDashboard = ({ user }) => {
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [batchHistory, setBatchHistory] = useState(null);
+  const [inspectionForm, setInspectionForm] = useState({
+    status: 'approved',
+    notes: '',
+    damages: '',
+    correctiveActions: '',
+    images: []
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [selectedImage, setSelectedImage] = useState(null);
 
-  useEffect(() => {
-    loadInspectionHistory();
-    loadQualityStats();
-  }, []);
-
-  const loadInspectionHistory = async () => {
-    // Simulate loading inspection history
-    setInspections([
-      {
-        id: 1,
-        product_id: '507f1f77bcf86cd799439011',
-        status: 'passed',
-        notes: 'Product meets all quality standards',
-        timestamp: new Date().toISOString(),
-        inspector: user.username
-      }
-    ]);
-  };
-
-  const loadQualityStats = () => {
-    setQualityStats({
-      total_inspected: 156,
-      passed: 142,
-      failed: 8,
-      needs_review: 6,
-      pass_rate: '91.0%'
+  const handleInspectionChange = (e) => {
+    setInspectionForm({
+      ...inspectionForm,
+      [e.target.name]: e.target.value
     });
   };
 
-  const handleScanResult = async (scanData) => {
-    // For inspectors, we'll show a form to record inspection details
-    const inspectionStatus = prompt('Enter inspection status (passed/failed/needs_review):');
-    const inspectionNotes = prompt('Enter inspection notes:');
-
-    if (inspectionStatus && inspectionNotes) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:8000/api/scan', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': `Bearer ${token}`
-          },
-          body: new URLSearchParams({
-            product_id: scanData.product_id,
-            inspection_status: inspectionStatus,
-            inspection_notes: inspectionNotes
-          })
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          
-          // Add to inspections list
-          const newInspection = {
-            id: inspections.length + 1,
-            product_id: scanData.product_id,
-            status: inspectionStatus,
-            notes: inspectionNotes,
-            timestamp: new Date().toISOString(),
-            inspector: user.username,
-            details: result
-          };
-          
-          setInspections(prev => [newInspection, ...prev]);
-          alert('Inspection recorded successfully!');
-        }
-      } catch (error) {
-        alert('Error recording inspection');
-      }
+  const handleScanResult = async (objectId) => {
+    try {
+      setLoading(true);
+      const batchDetails = await inspectorService.getBatchDetails(objectId);
+      const history = await inspectorService.getBatchHistory(objectId);
+      
+      setScanResult({ objectId, batchDetails });
+      setBatchHistory(history);
+      setError('');
+    } catch (error) {
+      setError('Failed to fetch batch details: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const InspectTab = () => (
-    <div className="inspect-tab">
-      <div className="inspection-guidelines">
-        <h4>Inspection Guidelines</h4>
-        <ul>
-          <li>Check product for physical damage</li>
-          <li>Verify manufacturing specifications</li>
-          <li>Confirm installation quality</li>
-          <li>Document any issues with photos/notes</li>
-        </ul>
-      </div>
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      setInspectionForm(prev => ({
+        ...prev,
+        images: [...prev.images, ...files.slice(0, 3)] // Limit to 3 images
+      }));
+    }
+  };
 
-      <QRScanner user={user} onScan={handleScanResult} />
+  const removeImage = (index) => {
+    setInspectionForm(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
 
-      <div className="inspection-form" style={{marginTop: '20px'}}>
-        <h4>Quick Inspection Form</h4>
-        <div className="form-grid">
-          <select className="form-input">
-            <option value="">Select Status</option>
-            <option value="passed">Passed</option>
-            <option value="failed">Failed</option>
-            <option value="needs_review">Needs Review</option>
-          </select>
-          <textarea 
-            className="form-input" 
-            placeholder="Inspection notes..."
-            rows="3"
-          />
-          <button className="btn-primary">Save Inspection</button>
-        </div>
-      </div>
-    </div>
-  );
+  const handleSubmitInspection = async (e) => {
+    e.preventDefault();
+    if (!scanResult) return;
 
-  const HistoryTab = () => (
-    <div className="history-tab">
-      <h3>Inspection History</h3>
-      <div className="inspections-list">
-        {inspections.length > 0 ? (
-          inspections.map(inspection => (
-            <div key={inspection.id} className="inspection-item">
-              <div className="inspection-header">
-                <span className="product-id">Product: {inspection.product_id.slice(-8)}</span>
-                <span className={`status-badge status-${inspection.status}`}>
-                  {inspection.status.toUpperCase()}
-                </span>
-              </div>
-              <div className="inspection-details">
-                <p><strong>Notes:</strong> {inspection.notes}</p>
-                <p><strong>Inspector:</strong> {inspection.inspector}</p>
-                <p><strong>Date:</strong> {new Date(inspection.timestamp).toLocaleString()}</p>
-              </div>
-            </div>
-          ))
-        ) : (
-          <p>No inspections recorded yet.</p>
-        )}
-      </div>
-    </div>
-  );
+    setLoading(true);
+    try {
+      await inspectorService.recordInspection({
+        objectId: scanResult.objectId,
+        status: inspectionForm.status,
+        notes: inspectionForm.notes,
+        damages: inspectionForm.damages,
+        correctiveActions: inspectionForm.correctiveActions,
+        inspectedBy: user._id,
+        images: inspectionForm.images // In real app, you'd upload these to a server
+      });
+      
+      setSuccess('Inspection recorded successfully!');
+      setScanResult(null);
+      setBatchHistory(null);
+      setInspectionForm({
+        status: 'approved',
+        notes: '',
+        damages: '',
+        correctiveActions: '',
+        images: []
+      });
+      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error) {
+      setError('Failed to record inspection: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const AnalyticsTab = () => (
-    <div className="analytics-tab">
-      <h3>Quality Analytics</h3>
-      <div className="stats-grid">
-        <div className="stat-card">
-          <h4>Total Inspected</h4>
-          <div className="stat-value large">{qualityStats.total_inspected || 0}</div>
-        </div>
-        <div className="stat-card">
-          <h4>Pass Rate</h4>
-          <div className="stat-value large" style={{color: '#28a745'}}>
-            {qualityStats.pass_rate || '0%'}
-          </div>
-        </div>
-        <div className="stat-card">
-          <h4>Passed</h4>
-          <div className="stat-value" style={{color: '#28a745'}}>{qualityStats.passed || 0}</div>
-        </div>
-        <div className="stat-card">
-          <h4>Failed</h4>
-          <div className="stat-value" style={{color: '#dc3545'}}>{qualityStats.failed || 0}</div>
-        </div>
-      </div>
-
-      <div className="quality-chart">
-        <h4>Quality Trends</h4>
-        <div className="chart-placeholder">
-          <p>Quality performance chart would be displayed here</p>
-          <div className="mock-chart">
-            <div className="chart-bar" style={{height: '80%', backgroundColor: '#28a745'}}>
-              <span>Passed: {qualityStats.passed || 0}</span>
-            </div>
-            <div className="chart-bar" style={{height: '15%', backgroundColor: '#ffc107'}}>
-              <span>Review: {qualityStats.needs_review || 0}</span>
-            </div>
-            <div className="chart-bar" style={{height: '5%', backgroundColor: '#dc3545'}}>
-              <span>Failed: {qualityStats.failed || 0}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const getStatusColor = (status) => {
+    const colors = {
+      approved: '#28a745',
+      rejected: '#dc3545',
+      pending: '#ffc107',
+      'needs-repair': '#fd7e14'
+    };
+    return colors[status] || '#6c757d';
+  };
 
   return (
-    <div className="dashboard inspector-dashboard">
-      <header className="dashboard-header">
-        <div className="header-left">
-          <h1>Quality Inspector Dashboard</h1>
-          <span className="user-welcome">Welcome, {user.username}</span>
-        </div>
-        <div className="header-right">
-          <button onClick={onLogout} className="logout-btn">Logout</button>
-        </div>
-      </header>
+    <div className="dashboard-container">
+      <h1>Inspector Dashboard</h1>
+      <p>Welcome, {user.name} ({user.organization})</p>
 
-      <div className="dashboard-stats">
-        <div className="stat-item">
-          <span className="stat-label">Today's Inspections</span>
-          <span className="stat-value">
-            {inspections.filter(i => 
-              new Date(i.timestamp).toDateString() === new Date().toDateString()
-            ).length}
-          </span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">Pass Rate</span>
-          <span className="stat-value">{qualityStats.pass_rate || '0%'}</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">Quality Score</span>
-          <span className="stat-value">94.5%</span>
-        </div>
+      <div className="scanner-section">
+        <h2>QR Code Scanner</h2>
+        
+        <QRScanner 
+          scanning={scanning}
+          onScanResult={handleScanResult}
+          onStartScan={() => setScanning(true)}
+          onStopScan={() => setScanning(false)}
+        />
+
+        {error && <div className="error-message">{error}</div>}
+        {success && <div className="success-message">{success}</div>}
+
+        {loading && (
+          <div className="loading-indicator">
+            <div className="spinner"></div>
+            Loading batch history...
+          </div>
+        )}
+
+        {scanResult && batchHistory && (
+          <div className="scan-result">
+            <div className="result-header">
+              <h3>🔍 Inspection Panel</h3>
+              <button 
+                onClick={() => {
+                  setScanResult(null);
+                  setBatchHistory(null);
+                }}
+                className="btn-secondary"
+              >
+                New Inspection
+              </button>
+            </div>
+
+            {/* Batch Summary */}
+            <div className="batch-summary-card">
+              <h4>Batch Summary</h4>
+              <div className="summary-grid">
+                <div className="summary-item">
+                  <label>ObjectId:</label>
+                  <span className="monospace">{scanResult.objectId}</span>
+                </div>
+                <div className="summary-item">
+                  <label>Batch:</label>
+                  <span>{scanResult.batchDetails.batchNumber}</span>
+                </div>
+                <div className="summary-item">
+                  <label>Material:</label>
+                  <span>{scanResult.batchDetails.materialType}</span>
+                </div>
+                <div className="summary-item">
+                  <label>Vendor:</label>
+                  <span>{scanResult.batchDetails.vendorName}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Complete History Timeline */}
+            <div className="full-history-section">
+              <h4>📊 Complete History Timeline</h4>
+              <div className="history-timeline">
+                {batchHistory.scans.map((scan, index) => (
+                  <div key={index} className="history-item">
+                    <div className="history-icon">
+                      {scan.scanType === 'depot_receival' ? '🏭' : 
+                       scan.scanType === 'installation' ? '🔧' : 
+                       scan.scanType === 'inspection' ? '🔍' : '📦'}
+                    </div>
+                    <div className="history-content">
+                      <div className="history-header">
+                        <strong>{getScanTypeDisplay(scan.scanType)}</strong>
+                        <span 
+                          className="status-badge"
+                          style={{ 
+                            backgroundColor: scan.status ? getStatusColor(scan.status) : '#6c757d' 
+                          }}
+                        >
+                          {scan.status || 'completed'}
+                        </span>
+                      </div>
+                      <div className="history-meta">
+                        <span>{new Date(scan.timestamp).toLocaleString()}</span>
+                        <span>By: {scan.scannedBy}</span>
+                      </div>
+                      {scan.notes && (
+                        <div className="history-notes">
+                          <strong>Notes:</strong> {scan.notes}
+                        </div>
+                      )}
+                      {scan.damages && (
+                        <div className="history-damages">
+                          <strong>Damages:</strong> {scan.damages}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Inspection Form */}
+            <form onSubmit={handleSubmitInspection} className="inspection-form">
+              <h4>✅ New Inspection</h4>
+              
+              <div className="form-group">
+                <label>Inspection Status:</label>
+                <select 
+                  name="status" 
+                  value={inspectionForm.status}
+                  onChange={handleInspectionChange}
+                  style={{ borderLeft: `4px solid ${getStatusColor(inspectionForm.status)}` }}
+                >
+                  <option value="approved">Approved ✅</option>
+                  <option value="pending">Pending ⏳</option>
+                  <option value="needs-repair">Needs Repair 🔧</option>
+                  <option value="rejected">Rejected ❌</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Inspection Notes:</label>
+                <textarea
+                  name="notes"
+                  value={inspectionForm.notes}
+                  onChange={handleInspectionChange}
+                  placeholder="General inspection observations and comments..."
+                  rows="3"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Damages Found (if any):</label>
+                <textarea
+                  name="damages"
+                  value={inspectionForm.damages}
+                  onChange={handleInspectionChange}
+                  placeholder="Describe any damages, defects, or issues found..."
+                  rows="2"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Corrective Actions Taken:</label>
+                <textarea
+                  name="correctiveActions"
+                  value={inspectionForm.correctiveActions}
+                  onChange={handleInspectionChange}
+                  placeholder="Describe corrective actions taken or recommended..."
+                  rows="2"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Upload Images (Max 3):</label>
+                <div className="image-upload-section">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImageUpload}
+                    disabled={inspectionForm.images.length >= 3}
+                  />
+                  <div className="image-preview-grid">
+                    {inspectionForm.images.map((image, index) => (
+                      <div key={index} className="image-preview">
+                        <img src={URL.createObjectURL(image)} alt={`Inspection ${index + 1}`} />
+                        <button 
+                          type="button" 
+                          onClick={() => removeImage(index)}
+                          className="remove-image-btn"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setScanResult(null);
+                    setBatchHistory(null);
+                  }}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button type="submit" disabled={loading} className="btn-primary">
+                  {loading ? 'Recording...' : 'Record Inspection'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
 
-      <nav className="dashboard-nav">
-        <button 
-          className={activeTab === 'inspect' ? 'nav-btn active' : 'nav-btn'}
-          onClick={() => setActiveTab('inspect')}
-        >
-          🔍 Inspect Products
-        </button>
-        <button 
-          className={activeTab === 'history' ? 'nav-btn active' : 'nav-btn'}
-          onClick={() => setActiveTab('history')}
-        >
-          📊 Inspection History
-        </button>
-        <button 
-          className={activeTab === 'analytics' ? 'nav-btn active' : 'nav-btn'}
-          onClick={() => setActiveTab('analytics')}
-        >
-          📈 Quality Analytics
-        </button>
-      </nav>
-
-      <div className="dashboard-content">
-        {activeTab === 'inspect' && <InspectTab />}
-        {activeTab === 'history' && <HistoryTab />}
-        {activeTab === 'analytics' && <AnalyticsTab />}
+      {/* Inspection Statistics */}
+      <div className="stats-section">
+        <h2>Inspection Statistics</h2>
+        <div className="stats-grid">
+          <div className="stat-card approved">
+            <h3>Approved</h3>
+            <span className="stat-number">0</span>
+          </div>
+          <div className="stat-card pending">
+            <h3>Pending</h3>
+            <span className="stat-number">0</span>
+          </div>
+          <div className="stat-card needs-repair">
+            <h3>Needs Repair</h3>
+            <span className="stat-number">0</span>
+          </div>
+          <div className="stat-card rejected">
+            <h3>Rejected</h3>
+            <span className="stat-number">0</span>
+          </div>
+        </div>
       </div>
     </div>
   );
+};
+
+const getScanTypeDisplay = (scanType) => {
+  const types = {
+    'depot_receival': 'Depot Receival',
+    'installation': 'Installation',
+    'inspection': 'Inspection'
+  };
+  return types[scanType] || scanType;
 };
 
 export default InspectorDashboard;
