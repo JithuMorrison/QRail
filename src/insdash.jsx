@@ -2,6 +2,124 @@ import React, { useState } from 'react';
 import QRScanner from './qscan';
 import { installationService } from './insserv';
 
+const REDUNDANCY = 3;
+const EXPECTED_GRID_SIZE = 18;
+
+// Convert hex string to bits
+const textToBits = (hexStr) => {
+  const bits = [];
+  const bytes = new Uint8Array(hexStr.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+  
+  for (let byte of bytes) {
+    const binaryStr = byte.toString(2).padStart(8, '0');
+    for (let bit of binaryStr) {
+      bits.push(parseInt(bit));
+    }
+  }
+  return bits;
+};
+
+// Bits to hex
+const bitsToText = (bits, length) => {
+  const reducedBits = [];
+  for (let i = 0; i < bits.length; i += REDUNDANCY) {
+    const chunk = bits.slice(i, i + REDUNDANCY);
+    const sum = chunk.reduce((a, b) => a + b, 0);
+    reducedBits.push(sum > REDUNDANCY / 2 ? 1 : 0);
+  }
+  
+  const byteStr = reducedBits.join('');
+  const truncatedBits = byteStr.slice(0, length * 4);
+  
+  const bytes = [];
+  for (let i = 0; i < truncatedBits.length; i += 8) {
+    const byteBits = truncatedBits.slice(i, i + 8);
+    if (byteBits.length === 8) {
+      bytes.push(parseInt(byteBits, 2));
+    }
+  }
+  
+  const hexArray = bytes.map(b => b.toString(16).padStart(2, '0'));
+  let result = hexArray.join('');
+  
+  if (result.length < length) {
+    result = result.padEnd(length, '0');
+  } else if (result.length > length) {
+    result = result.slice(0, length);
+  }
+  
+  return result;
+};
+
+// Decode 18x18 grid
+const decodeGrid = (grid, length) => {
+  const bits = [];
+  const gridSize = grid.length;
+  
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      if ((i === 0 && j === 0) || 
+          (i === 0 && j === gridSize - 1) || 
+          (i === gridSize - 1 && j === 0) || 
+          (i === gridSize - 1 && j === gridSize - 1)) {
+        continue;
+      }
+      bits.push(grid[i][j] === '\\' ? 1 : 0);
+    }
+  }
+  
+  return bitsToText(bits, length);
+};
+
+// Parse grid text back to grid array
+const parseGridText = (text) => {
+  const lines = text.trim().split('\n');
+  const grid = lines.map(line => line.split(''));
+  return grid;
+};
+
+// Process uploaded text file and extract grid pattern
+const processTextFile = (text) => {
+  // Remove any extra spaces and clean the text
+  const cleanText = text.trim().replace(/\r\n/g, '\n').replace(/ /g, '');
+  
+  // Split into lines and filter out empty lines
+  const lines = cleanText.split('\n').filter(line => line.length > 0);
+  
+  if (lines.length === 0) {
+    throw new Error('File is empty or contains no valid grid data');
+  }
+  
+  // Check if it's a valid grid pattern (all lines should have same length)
+  const firstLineLength = lines[0].length;
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i].length !== firstLineLength) {
+      throw new Error('Invalid grid format: lines have different lengths');
+    }
+  }
+  
+  // Check if it's an 18x18 grid
+  if (lines.length !== EXPECTED_GRID_SIZE || firstLineLength !== EXPECTED_GRID_SIZE) {
+    throw new Error(`Expected ${EXPECTED_GRID_SIZE}x${EXPECTED_GRID_SIZE} grid, but got ${lines.length}x${firstLineLength}`);
+  }
+  
+  // Validate characters (only / and \ allowed)
+  const grid = [];
+  for (let i = 0; i < lines.length; i++) {
+    const row = [];
+    for (let j = 0; j < lines[i].length; j++) {
+      const char = lines[i][j];
+      if (char !== '/' && char !== '\\') {
+        throw new Error(`Invalid character '${char}' at position (${i+1},${j+1}). Only '/' and '\\' are allowed.`);
+      }
+      row.push(char);
+    }
+    grid.push(row);
+  }
+  
+  return grid;
+};
+
 const InstallationDashboard = ({ user }) => {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
@@ -98,6 +216,8 @@ const InstallationDashboard = ({ user }) => {
           onScanResult={handleScanResult}
           onStartScan={() => setScanning(true)}
           onStopScan={() => setScanning(false)}
+          processTextFile = {processTextFile}
+          decodeGrid = {decodeGrid}
         />
 
         {error && <div className="error-message">{error}</div>}
