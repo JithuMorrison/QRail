@@ -3,6 +3,7 @@ const API_BASE = 'http://localhost:5000/api';
 export const vendorService = {
   // Create a new batch
   async createBatch(batchData) {
+    console.log(batchData);
     const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE}/vendor/batch`, {
       method: 'POST',

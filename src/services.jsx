@@ -1,8 +1,9 @@
-const API_BASE = 'http://localhost:5000/api';
+// services.js
+const API_URL = 'http://localhost:5000/api';
 
 export const authService = {
-  async login(credentials) {
-    const response = await fetch(`${API_BASE}/login`, {
+  login: async (credentials) => {
+    const response = await fetch(`${API_URL}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -10,16 +11,20 @@ export const authService = {
       body: JSON.stringify(credentials),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message);
+      throw new Error(data.message || 'Login failed');
     }
 
-    return response.json();
+    return {
+      user: data.user,
+      token: data.token  // Now matches the backend response
+    };
   },
 
-  async register(userData) {
-    const response = await fetch(`${API_BASE}/register`, {
+  register: async (userData) => {
+    const response = await fetch(`${API_URL}/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -27,11 +32,12 @@ export const authService = {
       body: JSON.stringify(userData),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message);
+      throw new Error(data.message || 'Registration failed');
     }
 
-    return response.json();
+    return data;
   }
 };

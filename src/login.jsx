@@ -28,7 +28,7 @@ const Login = ({ onLogin }) => {
       onLogin(response.user, response.token);
       navigate(`/${response.user.role}`);
     } catch (error) {
-      setError(error.message);
+      setError(error.message || 'Login failed');
     } finally {
       setLoading(false);
     }

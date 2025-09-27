@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import QRScanner from './qscan';
 import { inspectorService } from './inspserv';
 
@@ -71,26 +71,15 @@ const decodeGrid = (grid, length) => {
   return bitsToText(bits, length);
 };
 
-// Parse grid text back to grid array
-const parseGridText = (text) => {
-  const lines = text.trim().split('\n');
-  const grid = lines.map(line => line.split(''));
-  return grid;
-};
-
 // Process uploaded text file and extract grid pattern
 const processTextFile = (text) => {
-  // Remove any extra spaces and clean the text
   const cleanText = text.trim().replace(/\r\n/g, '\n').replace(/ /g, '');
-  
-  // Split into lines and filter out empty lines
   const lines = cleanText.split('\n').filter(line => line.length > 0);
   
   if (lines.length === 0) {
     throw new Error('File is empty or contains no valid grid data');
   }
   
-  // Check if it's a valid grid pattern (all lines should have same length)
   const firstLineLength = lines[0].length;
   for (let i = 1; i < lines.length; i++) {
     if (lines[i].length !== firstLineLength) {
@@ -98,12 +87,10 @@ const processTextFile = (text) => {
     }
   }
   
-  // Check if it's an 18x18 grid
   if (lines.length !== EXPECTED_GRID_SIZE || firstLineLength !== EXPECTED_GRID_SIZE) {
     throw new Error(`Expected ${EXPECTED_GRID_SIZE}x${EXPECTED_GRID_SIZE} grid, but got ${lines.length}x${firstLineLength}`);
   }
   
-  // Validate characters (only / and \ allowed)
   const grid = [];
   for (let i = 0; i < lines.length; i++) {
     const row = [];
@@ -120,6 +107,210 @@ const processTextFile = (text) => {
   return grid;
 };
 
+// Inline CSS Styles
+const styles = {
+  dashboard: {
+    minHeight: '100vh',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+  },
+  header: {
+    background: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(10px)',
+    padding: '2rem',
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+  },
+  headerContent: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '1rem'
+  },
+  headerTitle: {
+    flex: 1,
+    minWidth: '300px'
+  },
+  headerStats: {
+    background: 'linear-gradient(135deg, #10b981, #059669)',
+    padding: '1rem 2rem',
+    borderRadius: '15px',
+    color: 'white',
+    textAlign: 'center',
+    minWidth: '200px'
+  },
+  nav: {
+    background: 'rgba(255, 255, 255, 0.9)',
+    backdropFilter: 'blur(10px)',
+    padding: '0 2rem',
+    display: 'flex',
+    gap: '0',
+    borderBottom: '1px solid #e5e7eb',
+    overflowX: 'auto'
+  },
+  navTab: {
+    padding: '1rem 2rem',
+    background: 'none',
+    border: 'none',
+    borderBottom: '3px solid transparent',
+    fontSize: '1rem',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    color: '#6b7280',
+    whiteSpace: 'nowrap'
+  },
+  navTabActive: {
+    borderBottomColor: '#3b82f6',
+    color: '#3b82f6',
+    background: 'rgba(59, 130, 246, 0.05)'
+  },
+  main: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '2rem'
+  },
+  tabContent: {
+    background: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '20px',
+    padding: '2rem',
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+    marginBottom: '2rem'
+  },
+  sectionHeader: {
+    marginBottom: '2rem'
+  },
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '1.5rem',
+    marginBottom: '2rem'
+  },
+  statCard: {
+    background: 'linear-gradient(135deg, #667eea, #764ba2)',
+    borderRadius: '15px',
+    padding: '1.5rem',
+    color: 'white',
+    position: 'relative',
+    overflow: 'hidden',
+    transition: 'transform 0.3s ease'
+  },
+  statContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+    position: 'relative',
+    zIndex: 2
+  },
+  inspectionsGrid: {
+    display: 'grid',
+    gap: '1.5rem'
+  },
+  inspectionCard: {
+    background: 'white',
+    border: '1px solid #e5e7eb',
+    borderRadius: '12px',
+    padding: '1.5rem',
+    transition: 'all 0.3s ease'
+  },
+  inspectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '1rem'
+  },
+  statusBadge: {
+    padding: '0.25rem 0.75rem',
+    borderRadius: '20px',
+    color: 'white',
+    fontSize: '0.8rem',
+    fontWeight: '600'
+  },
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+    gap: '1.5rem'
+  },
+  formGroup: {
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  formInput: {
+    padding: '0.75rem',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
+    fontSize: '1rem',
+    transition: 'border-color 0.3s ease'
+  },
+  btnPrimary: {
+    background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+    color: 'white',
+    border: 'none',
+    padding: '1rem 2rem',
+    borderRadius: '8px',
+    fontSize: '1rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease'
+  },
+  alert: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '1rem',
+    borderRadius: '8px',
+    marginBottom: '1rem'
+  },
+  alertError: {
+    background: '#fef2f2',
+    border: '1px solid #fecaca',
+    color: '#dc2626'
+  },
+  alertSuccess: {
+    background: '#f0fdf4',
+    border: '1px solid #bbf7d0',
+    color: '#16a34a'
+  },
+  loadingOverlay: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '2rem',
+    background: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: '10px',
+    margin: '1rem 0'
+  },
+  spinner: {
+    border: '4px solid #f3f3f3',
+    borderTop: '4px solid #3b82f6',
+    borderRadius: '50%',
+    width: '40px',
+    height: '40px',
+    animation: 'spin 1s linear infinite'
+  },
+  timeline: {
+    borderLeft: '3px solid #e5e7eb',
+    marginLeft: '1rem',
+    paddingLeft: '2rem'
+  },
+  timelineItem: {
+    position: 'relative',
+    marginBottom: '2rem'
+  },
+  timelineMarker: {
+    position: 'absolute',
+    left: '-2.3rem',
+    top: '0',
+    width: '12px',
+    height: '12px',
+    borderRadius: '50%',
+    background: '#3b82f6'
+  }
+};
+
 const InspectorDashboard = ({ user }) => {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
@@ -134,7 +325,36 @@ const InspectorDashboard = ({ user }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [inspections, setInspections] = useState([]);
+  const [activeTab, setActiveTab] = useState('scanner');
+  const [inspectionsLoading, setInspectionsLoading] = useState(false);
+
+  useEffect(() => {
+    loadStats();
+    loadRecentInspections();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      const statsData = await inspectorService.getStats();
+      setStats(statsData);
+    } catch (error) {
+      console.error('Failed to load stats:', error);
+    }
+  };
+
+  const loadRecentInspections = async () => {
+    try {
+      setInspectionsLoading(true);
+      const inspectionsData = await inspectorService.getInspections(1, 5);
+      setInspections(inspectionsData.inspections || []);
+    } catch (error) {
+      console.error('Failed to load inspections:', error);
+    } finally {
+      setInspectionsLoading(false);
+    }
+  };
 
   const handleInspectionChange = (e) => {
     setInspectionForm({
@@ -152,6 +372,7 @@ const InspectorDashboard = ({ user }) => {
       setScanResult({ objectId, batchDetails });
       setBatchHistory(history);
       setError('');
+      setActiveTab('inspection');
     } catch (error) {
       setError('Failed to fetch batch details: ' + error.message);
     } finally {
@@ -164,7 +385,7 @@ const InspectorDashboard = ({ user }) => {
     if (files.length > 0) {
       setInspectionForm(prev => ({
         ...prev,
-        images: [...prev.images, ...files.slice(0, 3)] // Limit to 3 images
+        images: [...prev.images, ...files.slice(0, 3)]
       }));
     }
   };
@@ -189,10 +410,13 @@ const InspectorDashboard = ({ user }) => {
         damages: inspectionForm.damages,
         correctiveActions: inspectionForm.correctiveActions,
         inspectedBy: user._id,
-        images: inspectionForm.images // In real app, you'd upload these to a server
+        images: inspectionForm.images
       });
       
       setSuccess('Inspection recorded successfully!');
+      await loadStats();
+      await loadRecentInspections();
+      
       setScanResult(null);
       setBatchHistory(null);
       setInspectionForm({
@@ -203,7 +427,8 @@ const InspectorDashboard = ({ user }) => {
         images: []
       });
       
-      setTimeout(() => setSuccess(''), 3000);
+      setActiveTab('history');
+      setTimeout(() => setSuccess(''), 5000);
     } catch (error) {
       setError('Failed to record inspection: ' + error.message);
     } finally {
@@ -213,115 +438,293 @@ const InspectorDashboard = ({ user }) => {
 
   const getStatusColor = (status) => {
     const colors = {
-      approved: '#28a745',
-      rejected: '#dc3545',
-      pending: '#ffc107',
-      'needs-repair': '#fd7e14'
+      approved: 'linear-gradient(135deg, #10b981, #059669)',
+      rejected: 'linear-gradient(135deg, #ef4444, #dc2626)',
+      pending: 'linear-gradient(135deg, #f59e0b, #d97706)',
+      'needs-repair': 'linear-gradient(135deg, #f97316, #ea580c)'
     };
-    return colors[status] || '#6c757d';
+    return colors[status] || 'linear-gradient(135deg, #6b7280, #4b5563)';
   };
 
+  const getStatusIcon = (status) => {
+    const icons = {
+      approved: '✅',
+      rejected: '❌',
+      pending: '⏳',
+      'needs-repair': '🔧'
+    };
+    return icons[status] || '📋';
+  };
+
+  const StatCard = ({ title, value, type, icon }) => (
+    <div 
+      style={styles.statCard}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = 'translateY(-5px)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translateY(0)';
+      }}
+    >
+      <div style={styles.statContent}>
+        <div style={{ fontSize: '2.5rem' }}>{icon}</div>
+        <div>
+          <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', opacity: 0.9 }}>{title}</h3>
+          <span style={{ fontSize: '2.5rem', fontWeight: 'bold', display: 'block' }}>
+            {value || 0}
+          </span>
+        </div>
+      </div>
+      <div style={{
+        position: 'absolute',
+        bottom: '-10px',
+        right: '-10px',
+        width: '100px',
+        height: '100px',
+        background: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: '50%'
+      }}></div>
+    </div>
+  );
+
+  const InspectionCard = ({ inspection }) => (
+    <div 
+      style={styles.inspectionCard}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
+        e.currentTarget.style.transform = 'translateY(-2px)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = 'none';
+        e.currentTarget.style.transform = 'translateY(0)';
+      }}
+    >
+      <div style={styles.inspectionHeader}>
+        <div style={{ fontFamily: 'Courier New, monospace', color: '#6b7280', fontSize: '0.9rem' }}>
+          #{inspection._id.slice(-6)}
+        </div>
+        <div 
+          style={{
+            ...styles.statusBadge,
+            background: getStatusColor(inspection.status)
+          }}
+        >
+          {getStatusIcon(inspection.status)} {inspection.status.toUpperCase()}
+        </div>
+      </div>
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <span style={{ fontWeight: '600', color: '#1f2937' }}>
+            {inspection.batchDetails?.batchNumber || 'N/A'}
+          </span>
+          <span style={{ color: '#6b7280', fontSize: '0.9rem' }}>
+            {new Date(inspection.timestamp).toLocaleDateString()}
+          </span>
+        </div>
+        {inspection.notes && (
+          <p style={{ color: '#4b5563', margin: '0', lineHeight: '1.5' }}>{inspection.notes}</p>
+        )}
+        {inspection.damages && (
+          <div style={{
+            marginTop: '0.5rem',
+            padding: '0.75rem',
+            background: '#fef2f2',
+            borderRadius: '6px',
+            color: '#dc2626',
+            fontSize: '0.9rem'
+          }}>
+            <strong>Damages:</strong> {inspection.damages}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="dashboard-container">
-      <h1>Inspector Dashboard</h1>
-      <p>Welcome, {user.name} ({user.organization})</p>
+    <div style={styles.dashboard}>
+      {/* Header */}
+      <header style={styles.header}>
+        <div style={styles.headerContent}>
+          <div style={styles.headerTitle}>
+            <h1 style={{ margin: '0', color: '#1f2937', fontSize: '2.5rem', fontWeight: '700' }}>
+              🔍 Inspector Dashboard
+            </h1>
+            <p style={{ margin: '0.5rem 0 0 0', color: '#6b7280', fontSize: '1.1rem' }}>
+              Welcome back, <strong>{user.name}</strong> • {user.organization}
+            </p>
+          </div>
+          <div style={styles.headerStats}>
+            <span style={{ display: 'block', fontSize: '0.9rem', opacity: 0.9 }}>Total Inspections</span>
+            <span style={{ display: 'block', fontSize: '2rem', fontWeight: 'bold' }}>
+              {stats?.total_inspections || 0}
+            </span>
+          </div>
+        </div>
+      </header>
 
-      <div className="scanner-section">
-        <h2>QR Code Scanner</h2>
-        
-        <QRScanner 
-          scanning={scanning}
-          onScanResult={handleScanResult}
-          onStartScan={() => setScanning(true)}
-          onStopScan={() => setScanning(false)}
-          processTextFile={processTextFile}
-          decodeGrid={decodeGrid}
-        />
+      {/* Navigation Tabs */}
+      <nav style={styles.nav}>
+        <button 
+          style={{
+            ...styles.navTab,
+            ...(activeTab === 'scanner' && styles.navTabActive)
+          }}
+          onClick={() => setActiveTab('scanner')}
+        >
+          📱 QR Scanner
+        </button>
+        <button 
+          style={{
+            ...styles.navTab,
+            ...(activeTab === 'inspection' && styles.navTabActive),
+            ...(!scanResult && { opacity: 0.5, cursor: 'not-allowed' })
+          }}
+          onClick={() => scanResult && setActiveTab('inspection')}
+          disabled={!scanResult}
+        >
+          🔍 Current Inspection
+        </button>
+        <button 
+          style={{
+            ...styles.navTab,
+            ...(activeTab === 'history' && styles.navTabActive)
+          }}
+          onClick={() => setActiveTab('history')}
+        >
+          📊 Inspection History
+        </button>
+        <button 
+          style={{
+            ...styles.navTab,
+            ...(activeTab === 'stats' && styles.navTabActive)
+          }}
+          onClick={() => setActiveTab('stats')}
+        >
+          📈 Statistics
+        </button>
+      </nav>
 
-        {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
-
-        {loading && (
-          <div className="loading-indicator">
-            <div className="spinner"></div>
-            Loading batch history...
+      {/* Main Content */}
+      <main style={styles.main}>
+        {/* Alerts */}
+        {error && (
+          <div style={{...styles.alert, ...styles.alertError}}>
+            <span>⚠️ {error}</span>
+            <button 
+              onClick={() => setError('')}
+              style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer' }}
+            >
+              ×
+            </button>
           </div>
         )}
 
-        {scanResult && batchHistory && (
-          <div className="scan-result">
-            <div className="result-header">
-              <h3>🔍 Inspection Panel</h3>
+        {success && (
+          <div style={{...styles.alert, ...styles.alertSuccess}}>
+            <span>✅ {success}</span>
+            <button 
+              onClick={() => setSuccess('')}
+              style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer' }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Scanner Tab */}
+        {activeTab === 'scanner' && (
+          <div style={styles.tabContent}>
+            <div style={styles.sectionHeader}>
+              <h2 style={{ margin: '0', color: '#1f2937', fontSize: '2rem' }}>QR Code Scanner</h2>
+              <p style={{ margin: '0.5rem 0 0 0', color: '#6b7280' }}>Scan QR codes to begin inspection process</p>
+            </div>
+            
+            <QRScanner 
+              scanning={scanning}
+              onScanResult={handleScanResult}
+              onStartScan={() => setScanning(true)}
+              onStopScan={() => setScanning(false)}
+              processTextFile={processTextFile}
+              decodeGrid={decodeGrid}
+            />
+
+            {loading && (
+              <div style={styles.loadingOverlay}>
+                <div style={styles.spinner}></div>
+                <p>Loading batch details...</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Current Inspection Tab */}
+        {activeTab === 'inspection' && scanResult && batchHistory && (
+          <div style={styles.tabContent}>
+            <div style={{...styles.sectionHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <h2 style={{ margin: '0', color: '#1f2937', fontSize: '2rem' }}>Current Inspection</h2>
               <button 
                 onClick={() => {
                   setScanResult(null);
                   setBatchHistory(null);
+                  setActiveTab('scanner');
                 }}
-                className="btn-secondary"
+                style={{
+                  background: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
               >
-                New Inspection
+                ← New Scan
               </button>
             </div>
 
             {/* Batch Summary */}
-            <div className="batch-summary-card">
-              <h4>Batch Summary</h4>
-              <div className="summary-grid">
-                <div className="summary-item">
-                  <label>ObjectId:</label>
-                  <span className="monospace">{scanResult.objectId}</span>
+            <div style={{ marginBottom: '2rem' }}>
+              <h3 style={{ color: '#1f2937', marginBottom: '1rem' }}>Batch Information</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Object ID</label>
+                  <span style={{ fontFamily: 'monospace', background: '#f3f4f6', padding: '0.5rem', borderRadius: '4px' }}>
+                    {scanResult.objectId}
+                  </span>
                 </div>
-                <div className="summary-item">
-                  <label>Batch:</label>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Batch Number</label>
                   <span>{scanResult.batchDetails.batchNumber}</span>
                 </div>
-                <div className="summary-item">
-                  <label>Material:</label>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Material Type</label>
                   <span>{scanResult.batchDetails.materialType}</span>
                 </div>
-                <div className="summary-item">
-                  <label>Vendor:</label>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>Vendor</label>
                   <span>{scanResult.batchDetails.vendorName}</span>
                 </div>
               </div>
             </div>
 
-            {/* Complete History Timeline */}
-            <div className="full-history-section">
-              <h4>📊 Complete History Timeline</h4>
-              <div className="history-timeline">
+            {/* History Timeline */}
+            <div style={{ marginBottom: '2rem' }}>
+              <h3 style={{ color: '#1f2937', marginBottom: '1rem' }}>History Timeline</h3>
+              <div style={styles.timeline}>
                 {batchHistory.scans.map((scan, index) => (
-                  <div key={index} className="history-item">
-                    <div className="history-icon">
-                      {scan.scanType === 'depot_receival' ? '🏭' : 
-                       scan.scanType === 'installation' ? '🔧' : 
-                       scan.scanType === 'inspection' ? '🔍' : '📦'}
-                    </div>
-                    <div className="history-content">
-                      <div className="history-header">
+                  <div key={index} style={styles.timelineItem}>
+                    <div style={styles.timelineMarker}></div>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                         <strong>{getScanTypeDisplay(scan.scanType)}</strong>
-                        <span 
-                          className="status-badge"
-                          style={{ 
-                            backgroundColor: scan.status ? getStatusColor(scan.status) : '#6c757d' 
-                          }}
-                        >
-                          {scan.status || 'completed'}
+                        <span style={{ color: '#6b7280', fontSize: '0.9rem' }}>
+                          {new Date(scan.timestamp).toLocaleString()}
                         </span>
                       </div>
-                      <div className="history-meta">
-                        <span>{new Date(scan.timestamp).toLocaleString()}</span>
-                        <span>By: {scan.scannedBy}</span>
+                      <div style={{ color: '#6b7280', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                        By: {scan.scannedBy} • {scan.status || 'completed'}
                       </div>
                       {scan.notes && (
-                        <div className="history-notes">
-                          <strong>Notes:</strong> {scan.notes}
-                        </div>
-                      )}
-                      {scan.damages && (
-                        <div className="history-damages">
-                          <strong>Damages:</strong> {scan.damages}
-                        </div>
+                        <p style={{ color: '#4b5563', margin: '0' }}>{scan.notes}</p>
                       )}
                     </div>
                   </div>
@@ -330,75 +733,97 @@ const InspectorDashboard = ({ user }) => {
             </div>
 
             {/* Inspection Form */}
-            <form onSubmit={handleSubmitInspection} className="inspection-form">
-              <h4>✅ New Inspection</h4>
+            <form onSubmit={handleSubmitInspection}>
+              <h3 style={{ color: '#1f2937', marginBottom: '1rem' }}>Inspection Details</h3>
               
-              <div className="form-group">
-                <label>Inspection Status:</label>
-                <select 
-                  name="status" 
-                  value={inspectionForm.status}
-                  onChange={handleInspectionChange}
-                  style={{ borderLeft: `4px solid ${getStatusColor(inspectionForm.status)}` }}
-                >
-                  <option value="approved">Approved ✅</option>
-                  <option value="pending">Pending ⏳</option>
-                  <option value="needs-repair">Needs Repair 🔧</option>
-                  <option value="rejected">Rejected ❌</option>
-                </select>
-              </div>
+              <div style={styles.formGrid}>
+                <div style={styles.formGroup}>
+                  <label style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Inspection Status</label>
+                  <select 
+                    name="status" 
+                    value={inspectionForm.status}
+                    onChange={handleInspectionChange}
+                    style={{
+                      ...styles.formInput,
+                      borderLeft: `4px solid ${getStatusColor(inspectionForm.status).split(',')[0]}`
+                    }}
+                  >
+                    <option value="approved">Approved ✅</option>
+                    <option value="pending">Pending ⏳</option>
+                    <option value="needs-repair">Needs Repair 🔧</option>
+                    <option value="rejected">Rejected ❌</option>
+                  </select>
+                </div>
 
-              <div className="form-group">
-                <label>Inspection Notes:</label>
-                <textarea
-                  name="notes"
-                  value={inspectionForm.notes}
-                  onChange={handleInspectionChange}
-                  placeholder="General inspection observations and comments..."
-                  rows="3"
-                />
-              </div>
+                <div style={{...styles.formGroup, gridColumn: '1 / -1'}}>
+                  <label style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Inspection Notes</label>
+                  <textarea
+                    name="notes"
+                    value={inspectionForm.notes}
+                    onChange={handleInspectionChange}
+                    placeholder="General observations and comments..."
+                    rows="3"
+                    style={styles.formInput}
+                  />
+                </div>
 
-              <div className="form-group">
-                <label>Damages Found (if any):</label>
-                <textarea
-                  name="damages"
-                  value={inspectionForm.damages}
-                  onChange={handleInspectionChange}
-                  placeholder="Describe any damages, defects, or issues found..."
-                  rows="2"
-                />
-              </div>
+                <div style={styles.formGroup}>
+                  <label style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Damages Found</label>
+                  <textarea
+                    name="damages"
+                    value={inspectionForm.damages}
+                    onChange={handleInspectionChange}
+                    placeholder="Describe any damages or defects..."
+                    rows="2"
+                    style={styles.formInput}
+                  />
+                </div>
 
-              <div className="form-group">
-                <label>Corrective Actions Taken:</label>
-                <textarea
-                  name="correctiveActions"
-                  value={inspectionForm.correctiveActions}
-                  onChange={handleInspectionChange}
-                  placeholder="Describe corrective actions taken or recommended..."
-                  rows="2"
-                />
-              </div>
+                <div style={styles.formGroup}>
+                  <label style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Corrective Actions</label>
+                  <textarea
+                    name="correctiveActions"
+                    value={inspectionForm.correctiveActions}
+                    onChange={handleInspectionChange}
+                    placeholder="Corrective actions taken or recommended..."
+                    rows="2"
+                    style={styles.formInput}
+                  />
+                </div>
 
-              <div className="form-group">
-                <label>Upload Images (Max 3):</label>
-                <div className="image-upload-section">
+                <div style={{...styles.formGroup, gridColumn: '1 / -1'}}>
+                  <label style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Upload Images (Max 3)</label>
                   <input
                     type="file"
                     accept="image/*"
                     multiple
                     onChange={handleImageUpload}
                     disabled={inspectionForm.images.length >= 3}
+                    style={styles.formInput}
                   />
-                  <div className="image-preview-grid">
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', flexWrap: 'wrap' }}>
                     {inspectionForm.images.map((image, index) => (
-                      <div key={index} className="image-preview">
-                        <img src={URL.createObjectURL(image)} alt={`Inspection ${index + 1}`} />
+                      <div key={index} style={{ position: 'relative', width: '100px', height: '100px' }}>
+                        <img 
+                          src={URL.createObjectURL(image)} 
+                          alt={`Preview ${index + 1}`}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
+                        />
                         <button 
                           type="button" 
                           onClick={() => removeImage(index)}
-                          className="remove-image-btn"
+                          style={{
+                            position: 'absolute',
+                            top: '-5px',
+                            right: '-5px',
+                            background: '#ef4444',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '20px',
+                            height: '20px',
+                            cursor: 'pointer'
+                          }}
                         >
                           ×
                         </button>
@@ -408,48 +833,130 @@ const InspectorDashboard = ({ user }) => {
                 </div>
               </div>
 
-              <div className="form-actions">
+              <div style={{ marginTop: '2rem', textAlign: 'right' }}>
                 <button 
-                  type="button" 
-                  onClick={() => {
-                    setScanResult(null);
-                    setBatchHistory(null);
+                  type="submit" 
+                  disabled={loading}
+                  style={{
+                    ...styles.btnPrimary,
+                    ...(loading && { opacity: 0.7, cursor: 'not-allowed' })
                   }}
-                  className="btn-secondary"
+                  onMouseEnter={(e) => {
+                    if (!loading) {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 5px 15px rgba(59, 130, 246, 0.4)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!loading) {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }
+                  }}
                 >
-                  Cancel
-                </button>
-                <button type="submit" disabled={loading} className="btn-primary">
-                  {loading ? 'Recording...' : 'Record Inspection'}
+                  {loading ? '📤 Recording...' : '✅ Record Inspection'}
                 </button>
               </div>
             </form>
           </div>
         )}
-      </div>
 
-      {/* Inspection Statistics */}
-      <div className="stats-section">
-        <h2>Inspection Statistics</h2>
-        <div className="stats-grid">
-          <div className="stat-card approved">
-            <h3>Approved</h3>
-            <span className="stat-number">0</span>
+        {/* History Tab */}
+        {activeTab === 'history' && (
+          <div style={styles.tabContent}>
+            <div style={{...styles.sectionHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <h2 style={{ margin: '0', color: '#1f2937', fontSize: '2rem' }}>Recent Inspections</h2>
+              <button 
+                onClick={loadRecentInspections}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                🔄 Refresh
+              </button>
+            </div>
+
+            {inspectionsLoading ? (
+              <div style={styles.loadingOverlay}>
+                <div style={styles.spinner}></div>
+                <p>Loading inspections...</p>
+              </div>
+            ) : (
+              <div style={styles.inspectionsGrid}>
+                {inspections.map(inspection => (
+                  <InspectionCard key={inspection._id} inspection={inspection} />
+                ))}
+                {inspections.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>
+                    <p>No inspections found</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div className="stat-card pending">
-            <h3>Pending</h3>
-            <span className="stat-number">0</span>
+        )}
+
+        {/* Statistics Tab */}
+        {activeTab === 'stats' && (
+          <div style={styles.tabContent}>
+            <div style={{...styles.sectionHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <h2 style={{ margin: '0', color: '#1f2937', fontSize: '2rem' }}>Inspection Statistics</h2>
+              <button 
+                onClick={loadStats}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                🔄 Refresh
+              </button>
+            </div>
+
+            <div style={styles.statsGrid}>
+              <StatCard title="Approved" value={stats?.approved} type="approved" icon="✅" />
+              <StatCard title="Pending" value={stats?.pending} type="pending" icon="⏳" />
+              <StatCard title="Needs Repair" value={stats?.needs_repair} type="needs-repair" icon="🔧" />
+              <StatCard title="Rejected" value={stats?.rejected} type="rejected" icon="❌" />
+            </div>
+
+            {stats && (
+              <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
+                  <span>Total Inspections: </span>
+                  <strong>{stats.total_inspections}</strong>
+                </div>
+                <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
+                  <span>Approval Rate: </span>
+                  <strong>
+                    {stats.total_inspections > 0 
+                      ? Math.round((stats.approved / stats.total_inspections) * 100) 
+                      : 0}%
+                  </strong>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="stat-card needs-repair">
-            <h3>Needs Repair</h3>
-            <span className="stat-number">0</span>
-          </div>
-          <div className="stat-card rejected">
-            <h3>Rejected</h3>
-            <span className="stat-number">0</span>
-          </div>
-        </div>
-      </div>
+        )}
+      </main>
+
+      {/* Add CSS animation for spinner */}
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </div>
   );
 };
