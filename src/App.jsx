@@ -47,8 +47,8 @@ function App() {
         <Navbar user={user} onLogout={logout} />
         <Routes>
           <Route path="/" element={<Home user={user} />} />
-          <Route path="/login" element={!user ? <Login onLogin={login} /> : <Navigate to="/dashboard" />} />
-          <Route path="/register" element={!user ? <Register /> : <Navigate to="/vendor" />} />
+          <Route path="/login" element={!user ? <Login onLogin={login} /> : (user.role=="vendor" ?<Navigate to="/vendor" /> : <Navigate to="/depot" />)} />
+          <Route path="/register" element={!user ? <Register /> : (user.role=="vendor" ?<Navigate to="/vendor" /> : <Navigate to="/depot" />)} />
           <Route 
             path="/vendor" 
             element={user?.role === 'vendor' ? <VendorDashboard user={user} /> : <Navigate to="/" />} 
