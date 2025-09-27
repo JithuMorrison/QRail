@@ -154,24 +154,67 @@ const QRScanner = ({ scanning, onScanResult, onStartScan, onStopScan }) => {
   // Process image to extract grid pattern
   const processImage = (image) => {
     return new Promise((resolve, reject) => {
-      const canvas = canvasRef.current || document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
+      const canvas = canvasRef.current || document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
       canvas.width = image.width;
       canvas.height = image.height;
       ctx.drawImage(image, 0, 0);
-      
-      // Simple grid detection (this would be more sophisticated in a real app)
+
       try {
-        // For demo purposes, we'll simulate processing
-        // In a real app, you'd use image processing to detect the grid
-        setTimeout(() => {
-          // Simulate finding a grid and returning a mock ObjectId
-          const mockObjectId = '507f1f77bcf86cd799439011';
-          resolve(mockObjectId);
-        }, 1000);
+        const gridSize = 20;
+        const cellWidth = canvas.width / gridSize;
+        const cellHeight = canvas.height / gridSize;
+
+        const grid = [];
+
+        // Loop 20x20 grid
+        for (let row = 0; row < gridSize; row++) {
+          const rowData = [];
+          for (let col = 0; col < gridSize; col++) {
+            // Skip first/last row and col
+            if (row === 0 || row === gridSize - 1 || col === 0 || col === gridSize - 1) {
+              continue;
+            }
+
+            const x = col * cellWidth;
+            const y = row * cellHeight;
+
+            const cellData = ctx.getImageData(x, y, cellWidth, cellHeight);
+            const pixels = cellData.data;
+
+            let diag1 = 0; // "\"
+            let diag2 = 0; // "/"
+
+            for (let i = 0; i < pixels.length; i += 4) {
+              const r = pixels[i];
+              const g = pixels[i + 1];
+              const b = pixels[i + 2];
+              const brightness = (r + g + b) / 3;
+
+              const pixelIndex = i / 4;
+              const px = pixelIndex % cellWidth;
+              const py = Math.floor(pixelIndex / cellWidth);
+
+              if (px === py) diag1 += brightness;
+              if (px === cellWidth - py - 1) diag2 += brightness;
+            }
+
+            rowData.push(diag1 > diag2 ? "/" : "\\");
+          }
+          if (rowData.length > 0) grid.push(rowData);
+        }
+
+        // Log grid (18x18)
+        console.log("Extracted Grid:");
+        grid.forEach(r => console.log(r.join(" ")));
+
+        // Decode into ObjectId
+        const decodedOid = decodeGrid(grid, 24);
+        resolve(decodedOid);
+
       } catch (error) {
-        reject(new Error('Failed to process image: ' + error.message));
+        reject(new Error("Failed to process image: " + error.message));
       }
     });
   };
