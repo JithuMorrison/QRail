@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { use, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import QRScanner from './qscan';
 import { installationService } from './insserv';
 
@@ -132,6 +133,7 @@ const InstallationDashboard = ({ user }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const nav = useNavigate();
 
   const handleInstallationChange = (e) => {
     setInstallationForm({
@@ -506,6 +508,7 @@ const InstallationDashboard = ({ user }) => {
           <div style={styles.headerSubtitle}>
             Welcome, {user.name} ({user.organization})
           </div>
+          <button onClick={()=>{nav('/analytics/installation')}}>View Analytics</button>
         </div>
 
         {/* Main Content */}

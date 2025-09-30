@@ -10,6 +10,7 @@ import InspectorDashboard from './inspdash';
 import Navbar from './navbar';
 import { authService } from './services';
 import './App.css';
+import AnalyticsDashboard from './analyticsdash';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -49,6 +50,7 @@ function App() {
           <Route path="/" element={<Home user={user} />} />
           <Route path="/login" element={!user ? <Login onLogin={login} /> : <Navigate to={`/${user.role}`} />} />
           <Route path="/register" element={!user ? <Register /> : <Navigate to="/login" />} />
+          <Route path="/analytics/:currentPage" element={<AnalyticsDashboard user={user} />} />
           <Route 
             path="/vendor" 
             element={user?.role === 'vendor' ? <VendorDashboard user={user} /> : <Navigate to="/" />} 
