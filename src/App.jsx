@@ -11,6 +11,7 @@ import Navbar from './navbar';
 import { authService } from './services';
 import './App.css';
 import AnalyticsDashboard from './analyticsdash';
+import RulesManagement from './rulesmanage';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -51,6 +52,7 @@ function App() {
           <Route path="/login" element={!user ? <Login onLogin={login} /> : <Navigate to={`/${user.role}`} />} />
           <Route path="/register" element={!user ? <Register /> : <Navigate to="/login" />} />
           <Route path="/analytics/:currentPage" element={<AnalyticsDashboard user={user} />} />
+          <Route path="/rules" element={<RulesManagement user={user}/>} />
           <Route 
             path="/vendor" 
             element={user?.role === 'vendor' ? <VendorDashboard user={user} /> : <Navigate to="/" />} 

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { depotService } from './depotserv';
 import QRScanner from './qscan';
-import RulesManagement from './rulesmanage';
+import { useNavigate } from 'react-router-dom';
 
 // ----------------- QR Scanning Utilities -----------------
 const REDUNDANCY = 3;
@@ -134,6 +134,7 @@ const DepotDashboard = ({ user }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [scanHistory, setScanHistory] = useState([]);
+  const nav = useNavigate();
 
   const handleDepotChange = (e) => {
     setDepotForm({
@@ -538,6 +539,7 @@ const DepotDashboard = ({ user }) => {
             <div style={styles.statsSection}>
               📊 Recent Scans: {scanHistory.length}
             </div>
+            <button onClick={()=>{nav('/rules')}}>Update Rules</button>
           </div>
         </div>
 
@@ -780,7 +782,6 @@ const DepotDashboard = ({ user }) => {
           </div>
         </div>
       </div>
-      <RulesManagement />
     </div>
   );
 };
