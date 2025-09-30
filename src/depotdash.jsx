@@ -539,7 +539,28 @@ const DepotDashboard = ({ user }) => {
             <div style={styles.statsSection}>
               📊 Recent Scans: {scanHistory.length}
             </div>
-            <button onClick={()=>{nav('/rules')}}>Update Rules</button>
+            <button style={{
+          backgroundColor: "#4CAF50",
+          color: "white",
+          padding: "12px 24px",
+          border: "none",
+          borderRadius: "8px",
+          cursor: "pointer",
+          fontSize: "16px",
+          fontWeight: "bold",
+          transition: "0.3s",
+        }} onClick={()=>{nav('/rules')}}>Update Rules</button>
+            <button style={{
+          backgroundColor: "#4CAF50",
+          color: "white",
+          padding: "12px 24px",
+          border: "none",
+          borderRadius: "8px",
+          cursor: "pointer",
+          fontSize: "16px",
+          fontWeight: "bold",
+          transition: "0.3s",
+        }} onClick={()=>{nav('/analytics/depot')}}>View Analytics</button>
           </div>
         </div>
 

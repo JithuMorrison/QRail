@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import QRScanner from './qscan';
 import { inspectorService } from './inspserv';
+import { useNavigate } from 'react-router-dom';
 
 const REDUNDANCY = 3;
 const EXPECTED_GRID_SIZE = 18;
@@ -329,6 +330,7 @@ const InspectorDashboard = ({ user }) => {
   const [inspections, setInspections] = useState([]);
   const [activeTab, setActiveTab] = useState('scanner');
   const [inspectionsLoading, setInspectionsLoading] = useState(false);
+  const nav = useNavigate();
 
   useEffect(() => {
     loadStats();
@@ -552,6 +554,17 @@ const InspectorDashboard = ({ user }) => {
             <p style={{ margin: '0.5rem 0 0 0', color: '#6b7280', fontSize: '1.1rem' }}>
               Welcome back, <strong>{user.name}</strong> • {user.organization}
             </p>
+            <button style={{
+          backgroundColor: "#4CAF50",
+          color: "white",
+          padding: "12px 24px",
+          border: "none",
+          borderRadius: "8px",
+          cursor: "pointer",
+          fontSize: "16px",
+          fontWeight: "bold",
+          transition: "0.3s",
+        }} onClick={()=>{nav('/analytics/installation')}}>View Analytics</button>
           </div>
           <div style={styles.headerStats}>
             <span style={{ display: 'block', fontSize: '0.9rem', opacity: 0.9 }}>Total Inspections</span>

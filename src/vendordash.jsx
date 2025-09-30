@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { vendorService } from './vendserv';
+import { useNavigate } from 'react-router-dom';
 
 const VendorDashboard = ({ user }) => {
   const [batchForm, setBatchForm] = useState({
@@ -15,6 +16,7 @@ const VendorDashboard = ({ user }) => {
   const [vendorBatches, setVendorBatches] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [activeTab, setActiveTab] = useState('create');
+  const nav = useNavigate();
 
   useEffect(() => { 
     loadVendorBatches(); 
@@ -279,6 +281,17 @@ const VendorDashboard = ({ user }) => {
         <p style={subtitleStyle}>
           Welcome back, <strong>{user.name}</strong> from {user.organization}
         </p>
+        <button style={{
+          backgroundColor: "#4CAF50",
+          color: "white",
+          padding: "12px 24px",
+          border: "none",
+          borderRadius: "8px",
+          cursor: "pointer",
+          fontSize: "16px",
+          fontWeight: "bold",
+          transition: "0.3s",
+        }} onClick={()=>{nav('/analytics/vendor')}}>View Analytics</button>
       </div>
 
       <div style={cardStyle}>

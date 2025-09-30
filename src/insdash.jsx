@@ -508,7 +508,17 @@ const InstallationDashboard = ({ user }) => {
           <div style={styles.headerSubtitle}>
             Welcome, {user.name} ({user.organization})
           </div>
-          <button onClick={()=>{nav('/analytics/installation')}}>View Analytics</button>
+          <button style={{
+          backgroundColor: "#4CAF50",
+          color: "white",
+          padding: "12px 24px",
+          border: "none",
+          borderRadius: "8px",
+          cursor: "pointer",
+          fontSize: "16px",
+          fontWeight: "bold",
+          transition: "0.3s",
+        }} onClick={()=>{nav('/analytics/installation')}}>View Analytics</button>
         </div>
 
         {/* Main Content */}
