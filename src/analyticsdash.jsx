@@ -1,9 +1,10 @@
+// AnalyticsDashboard.js
 import React, { useState, useEffect } from 'react';
 import { analyticsService } from './analyticsserv';
 import { useParams } from 'react-router-dom';
 
-const AnalyticsDashboard = ({ user }) => {
-  const {currentPage} = useParams();
+const AnalyticsDashboard = ({ user}) => {
+  const { currentPage } = useParams();
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('30d');
@@ -29,7 +30,7 @@ const AnalyticsDashboard = ({ user }) => {
     }
   };
 
-  // Inline CSS Styles
+  // Styles
   const styles = {
     container: {
       minHeight: '100vh',
@@ -224,15 +225,6 @@ const AnalyticsDashboard = ({ user }) => {
         <button 
           style={{
             ...styles.navTab,
-            ...(activeSection === 'rules' && styles.navTabActive)
-          }}
-          onClick={() => setActiveSection('rules')}
-        >
-          ⚙️ Rules Management
-        </button>
-        <button 
-          style={{
-            ...styles.navTab,
             ...(activeSection === 'reports' && styles.navTabActive)
           }}
           onClick={() => setActiveSection('reports')}
@@ -279,14 +271,6 @@ const AnalyticsDashboard = ({ user }) => {
             data={analyticsData}
             currentPage={currentPage}
             styles={styles}
-          />
-        )}
-
-        {/* Rules Management Section */}
-        {activeSection === 'rules' && (
-          <RulesManagementSection 
-            styles={styles}
-            user={user}
           />
         )}
 
@@ -402,7 +386,7 @@ const OverviewSection = ({ data, currentPage, styles }) => {
         <div style={styles.section}>
           <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Activity Trend</h3>
           <div style={styles.chartContainer}>
-            <MockChart type="line" data={data?.activityTrend} />
+            <LineChart data={data?.activityTrend || [65, 78, 90, 81, 56, 55, 40]} />
           </div>
         </div>
 
@@ -410,7 +394,7 @@ const OverviewSection = ({ data, currentPage, styles }) => {
         <div style={styles.section}>
           <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Distribution</h3>
           <div style={styles.chartContainer}>
-            <MockChart type="pie" data={data?.distribution} />
+            <PieChart data={data?.distribution || [30, 25, 20, 15, 10]} />
           </div>
         </div>
 
@@ -418,7 +402,7 @@ const OverviewSection = ({ data, currentPage, styles }) => {
         <div style={styles.section}>
           <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Performance Metrics</h3>
           <div style={styles.chartContainer}>
-            <MockChart type="bar" data={data?.performance} />
+            <BarChart data={data?.performance || [85, 92, 78, 88, 95]} />
           </div>
         </div>
 
@@ -426,9 +410,270 @@ const OverviewSection = ({ data, currentPage, styles }) => {
         <div style={styles.section}>
           <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Timeline Analysis</h3>
           <div style={styles.chartContainer}>
-            <MockChart type="area" data={data?.timeline} />
+            <AreaChart data={data?.timeline || [45, 52, 48, 61, 55, 68, 72]} />
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// Fixed Line Chart Component
+const LineChart = ({ data }) => {
+  const maxValue = Math.max(...data);
+  const points = data.map((value, index) => {
+    const x = (index / (data.length - 1)) * 100;
+    const y = 100 - (value / maxValue) * 100;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <div style={{ height: '200px', position: 'relative' }}>
+      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+        {/* Grid lines */}
+        {[0, 25, 50, 75, 100].map((y) => (
+          <line
+            key={y}
+            x1="0"
+            y1={y}
+            x2="100"
+            y2={y}
+            stroke="#e5e7eb"
+            strokeWidth="0.5"
+          />
+        ))}
+        
+        {/* Area fill */}
+        <polygon
+          points={`0,100 ${points} 100,100`}
+          fill="url(#lineGradient)"
+          fillOpacity="0.3"
+        />
+        
+        {/* Line */}
+        <polyline
+          points={points}
+          fill="none"
+          stroke="url(#lineGradient)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        
+        {/* Data points */}
+        {data.map((value, index) => {
+          const x = (index / (data.length - 1)) * 100;
+          const y = 100 - (value / maxValue) * 100;
+          return (
+            <circle
+              key={index}
+              cx={x}
+              cy={y}
+              r="2"
+              fill="#667eea"
+              stroke="#fff"
+              strokeWidth="1"
+            />
+          );
+        })}
+        
+        <defs>
+          <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#667eea" />
+            <stop offset="100%" stopColor="#764ba2" />
+          </linearGradient>
+        </defs>
+      </svg>
+      
+      {/* X-axis labels */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        marginTop: '10px',
+        fontSize: '0.7rem',
+        color: '#6b7280'
+      }}>
+        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].slice(0, data.length).map((label, index) => (
+          <span key={index}>{label}</span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Fixed Area Chart Component
+const AreaChart = ({ data }) => {
+  const maxValue = Math.max(...data);
+  const points = data.map((value, index) => {
+    const x = (index / (data.length - 1)) * 100;
+    const y = 100 - (value / maxValue) * 100;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <div style={{ height: '200px', position: 'relative' }}>
+      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+        {/* Grid lines */}
+        {[0, 25, 50, 75, 100].map((y) => (
+          <line
+            key={y}
+            x1="0"
+            y1={y}
+            x2="100"
+            y2={y}
+            stroke="#e5e7eb"
+            strokeWidth="0.5"
+          />
+        ))}
+        
+        {/* Area fill */}
+        <polygon
+          points={`0,100 ${points} 100,100`}
+          fill="url(#areaGradient)"
+          fillOpacity="0.6"
+        />
+        
+        {/* Line */}
+        <polyline
+          points={points}
+          fill="none"
+          stroke="#4f46e5"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        
+        <defs>
+          <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.8" />
+            <stop offset="100%" stopColor="#7c3aed" stopOpacity="0.3" />
+          </linearGradient>
+        </defs>
+      </svg>
+      
+      {/* X-axis labels */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        marginTop: '10px',
+        fontSize: '0.7rem',
+        color: '#6b7280'
+      }}>
+        {['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7'].slice(0, data.length).map((label, index) => (
+          <span key={index}>{label}</span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Bar Chart Component
+const BarChart = ({ data }) => {
+  const maxValue = Math.max(...data);
+  
+  return (
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'end', 
+      justifyContent: 'space-around', 
+      height: '200px',
+      padding: '1rem 0'
+    }}>
+      {data.map((value, index) => (
+        <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              width: '30px',
+              height: `${(value / maxValue) * 150}px`,
+              borderRadius: '4px 4px 0 0',
+              transition: 'height 0.3s ease'
+            }}
+          ></div>
+          <div style={{ 
+            marginTop: '8px', 
+            fontSize: '0.7rem', 
+            color: '#6b7280',
+            fontWeight: '600'
+          }}>
+            {value}%
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Pie Chart Component
+const PieChart = ({ data }) => {
+  const colors = ['#667eea', '#764ba2', '#10b981', '#f59e0b', '#ef4444'];
+  const total = data.reduce((sum, value) => sum + value, 0);
+  
+  let currentAngle = 0;
+  const segments = data.map((value, index) => {
+    const percentage = (value / total) * 100;
+    const angle = (value / total) * 360;
+    const segment = {
+      percentage,
+      angle,
+      startAngle: currentAngle,
+      color: colors[index % colors.length]
+    };
+    currentAngle += angle;
+    return segment;
+  });
+
+  return (
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      height: '200px',
+      flexDirection: 'column'
+    }}>
+      <div style={{ 
+        width: '150px', 
+        height: '150px', 
+        borderRadius: '50%',
+        position: 'relative',
+        background: 'conic-gradient(' +
+          segments.map(segment => 
+            `${segment.color} ${segment.startAngle}deg ${segment.startAngle + segment.angle}deg`
+          ).join(', ') +
+        ')'
+      }}>
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '80px',
+          height: '80px',
+          background: 'white',
+          borderRadius: '50%'
+        }}></div>
+      </div>
+      
+      {/* Legend */}
+      <div style={{ 
+        display: 'flex', 
+        flexWrap: 'wrap', 
+        gap: '8px', 
+        marginTop: '1rem',
+        justifyContent: 'center'
+      }}>
+        {segments.map((segment, index) => (
+          <div key={index} style={{ display: 'flex', alignItems: 'center', fontSize: '0.7rem' }}>
+            <div style={{
+              width: '12px',
+              height: '12px',
+              background: segment.color,
+              borderRadius: '2px',
+              marginRight: '4px'
+            }}></div>
+            <span>{segment.percentage.toFixed(1)}%</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -579,277 +824,13 @@ const AISummarySection = ({ data, currentPage, styles }) => {
   );
 };
 
-// Rules Management Section Component
-const RulesManagementSection = ({ styles, user }) => {
-  const [rules, setRules] = useState({
-    retrievalMethod: 'fifo',
-    customRules: [],
-    expirationRules: {
-      enabled: true,
-      warningDays: 30,
-      autoFlag: true
-    },
-    priorityRules: {
-      materialType: [],
-      vendorPriority: []
-    }
-  });
-
-  const [newRule, setNewRule] = useState({
-    field: '',
-    condition: '',
-    value: '',
-    action: ''
-  });
-
-  const handleRuleChange = (section, field, value) => {
-    setRules(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value
-      }
-    }));
-  };
-
-  const addCustomRule = () => {
-    if (newRule.field && newRule.condition && newRule.value) {
-      setRules(prev => ({
-        ...prev,
-        customRules: [...prev.customRules, { ...newRule, id: Date.now() }]
-      }));
-      setNewRule({ field: '', condition: '', value: '', action: '' });
-    }
-  };
-
-  const removeCustomRule = (id) => {
-    setRules(prev => ({
-      ...prev,
-      customRules: prev.customRules.filter(rule => rule.id !== id)
-    }));
-  };
-
-  return (
-    <div style={styles.section}>
-      <h2 style={{ margin: '0 0 1.5rem 0', color: '#1f2937', fontSize: '1.8rem' }}>
-        ⚙️ Rules Management
-      </h2>
-
-      {/* Retrieval Method */}
-      <div style={styles.chartContainer}>
-        <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Material Retrieval Method</h3>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          {[
-            { value: 'fifo', label: 'FIFO (First In, First Out)', description: 'Use oldest materials first' },
-            { value: 'lifo', label: 'LIFO (Last In, First Out)', description: 'Use newest materials first' },
-            { value: 'fefo', label: 'FEFO (First Expired, First Out)', description: 'Based on expiration dates' },
-            { value: 'manual', label: 'Manual Selection', description: 'Custom selection process' }
-          ].map(method => (
-            <div 
-              key={method.value}
-              style={{
-                flex: '1',
-                minWidth: '200px',
-                padding: '1rem',
-                border: `2px solid ${rules.retrievalMethod === method.value ? '#3b82f6' : '#e5e7eb'}`,
-                borderRadius: '8px',
-                background: rules.retrievalMethod === method.value ? '#eff6ff' : 'white',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-              onClick={() => handleRuleChange('retrievalMethod', '', method.value)}
-            >
-              <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>{method.label}</div>
-              <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{method.description}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Expiration Rules */}
-      <div style={styles.chartContainer}>
-        <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Expiration & Shelf Life Rules</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-          <div>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
-              <input 
-                type="checkbox" 
-                checked={rules.expirationRules.enabled}
-                onChange={(e) => handleRuleChange('expirationRules', 'enabled', e.target.checked)}
-                style={{ marginRight: '0.5rem' }}
-              />
-              Enable Expiration Tracking
-            </label>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
-              Warning Days Before Expiry
-            </label>
-            <input 
-              type="number" 
-              value={rules.expirationRules.warningDays}
-              onChange={(e) => handleRuleChange('expirationRules', 'warningDays', parseInt(e.target.value))}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '4px' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
-              <input 
-                type="checkbox" 
-                checked={rules.expirationRules.autoFlag}
-                onChange={(e) => handleRuleChange('expirationRules', 'autoFlag', e.target.checked)}
-                style={{ marginRight: '0.5rem' }}
-              />
-              Auto-Flag Near-Expiry Materials
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* Custom Rules */}
-      <div style={styles.chartContainer}>
-        <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Custom Business Rules</h3>
-        
-        {/* Add New Rule Form */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
-          <div>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', fontSize: '0.8rem' }}>Field</label>
-            <select 
-              value={newRule.field}
-              onChange={(e) => setNewRule(prev => ({ ...prev, field: e.target.value }))}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '4px' }}
-            >
-              <option value="">Select Field</option>
-              <option value="materialType">Material Type</option>
-              <option value="vendor">Vendor</option>
-              <option value="warranty">Warranty Period</option>
-              <option value="location">Storage Location</option>
-              <option value="date">Date Created</option>
-            </select>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', fontSize: '0.8rem' }}>Condition</label>
-            <select 
-              value={newRule.condition}
-              onChange={(e) => setNewRule(prev => ({ ...prev, condition: e.target.value }))}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '4px' }}
-            >
-              <option value="">Select Condition</option>
-              <option value="equals">Equals</option>
-              <option value="contains">Contains</option>
-              <option value="greater">Greater Than</option>
-              <option value="less">Less Than</option>
-              <option value="between">Between</option>
-            </select>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', fontSize: '0.8rem' }}>Value</label>
-            <input 
-              type="text" 
-              value={newRule.value}
-              onChange={(e) => setNewRule(prev => ({ ...prev, value: e.target.value }))}
-              placeholder="Enter value"
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '4px' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem', fontSize: '0.8rem' }}>Action</label>
-            <select 
-              value={newRule.action}
-              onChange={(e) => setNewRule(prev => ({ ...prev, action: e.target.value }))}
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '4px' }}
-            >
-              <option value="">Select Action</option>
-              <option value="prioritize">Prioritize Usage</option>
-              <option value="delay">Delay Usage</option>
-              <option value="flag">Flag for Review</option>
-              <option value="notify">Send Notification</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'end' }}>
-            <button 
-              onClick={addCustomRule}
-              style={{
-                background: '#10b981',
-                color: 'white',
-                border: 'none',
-                padding: '0.5rem 1rem',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                width: '100%'
-              }}
-            >
-              Add Rule
-            </button>
-          </div>
-        </div>
-
-        {/* Existing Rules List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {rules.customRules.map(rule => (
-            <div 
-              key={rule.id}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '0.75rem',
-                background: '#f8fafc',
-                borderRadius: '4px',
-                border: '1px solid #e5e7eb'
-              }}
-            >
-              <div>
-                <span style={{ fontWeight: '600' }}>{rule.field}</span>
-                <span style={{ margin: '0 0.5rem' }}>{rule.condition}</span>
-                <span style={{ background: '#eff6ff', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                  {rule.value}
-                </span>
-                <span style={{ marginLeft: '1rem', color: '#059669', fontWeight: '600' }}>
-                  → {rule.action}
-                </span>
-              </div>
-              <button 
-                onClick={() => removeCustomRule(rule.id)}
-                style={{
-                  background: '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  padding: '0.25rem 0.5rem',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Save Rules */}
-      <div style={{ textAlign: 'right', marginTop: '1.5rem' }}>
-        <button 
-          style={{
-            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-            color: 'white',
-            border: 'none',
-            padding: '0.75rem 2rem',
-            borderRadius: '8px',
-            fontSize: '1rem',
-            fontWeight: '600',
-            cursor: 'pointer'
-          }}
-        >
-          💾 Save Rules Configuration
-        </button>
-      </div>
-    </div>
-  );
-};
-
 // Reports Section Component
 const ReportsSection = ({ data, styles }) => {
+  const downloadReport = (type) => {
+    alert(`Downloading ${type} report...`);
+    // In real implementation, this would generate and download the report
+  };
+
   return (
     <div style={styles.section}>
       <h2 style={{ margin: '0 0 1.5rem 0', color: '#1f2937', fontSize: '1.8rem' }}>
@@ -860,16 +841,20 @@ const ReportsSection = ({ data, styles }) => {
         {/* Performance Report */}
         <div style={styles.chartContainer}>
           <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Performance Report</h3>
-          <MockChart type="bar" data={data?.performanceReport} />
+          <BarChart data={data?.performanceReport || [88, 92, 85, 90, 87]} />
           <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-            <button style={{
-              background: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              padding: '0.5rem 1rem',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}>
+            <button 
+              onClick={() => downloadReport('performance')}
+              style={{
+                background: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
               📥 Download PDF
             </button>
           </div>
@@ -878,16 +863,20 @@ const ReportsSection = ({ data, styles }) => {
         {/* Activity Report */}
         <div style={styles.chartContainer}>
           <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Activity Report</h3>
-          <MockChart type="line" data={data?.activityReport} />
+          <LineChart data={data?.activityReport || [45, 52, 48, 61, 55, 68, 72]} />
           <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-            <button style={{
-              background: '#10b981',
-              color: 'white',
-              border: 'none',
-              padding: '0.5rem 1rem',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}>
+            <button 
+              onClick={() => downloadReport('activity')}
+              style={{
+                background: '#10b981',
+                color: 'white',
+                border: 'none',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
               📥 Download CSV
             </button>
           </div>
@@ -896,119 +885,65 @@ const ReportsSection = ({ data, styles }) => {
         {/* Quality Report */}
         <div style={styles.chartContainer}>
           <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Quality Metrics</h3>
-          <MockChart type="pie" data={data?.qualityReport} />
+          <PieChart data={data?.qualityReport || [70, 15, 10, 5]} />
           <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-            <button style={{
-              background: '#f59e0b',
-              color: 'white',
-              border: 'none',
-              padding: '0.5rem 1rem',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}>
+            <button 
+              onClick={() => downloadReport('quality')}
+              style={{
+                background: '#f59e0b',
+                color: 'white',
+                border: 'none',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
               📥 Download Report
             </button>
           </div>
         </div>
       </div>
-    </div>
-  );
-};
 
-// Mock Chart Component (for demonstration)
-const MockChart = ({ type, data }) => {
-  const chartStyle = {
-    display: 'flex',
-    alignItems: 'end',
-    justifyContent: 'center',
-    height: '200px',
-    gap: '8px',
-    padding: '1rem'
-  };
-
-  const barStyle = {
-    background: 'linear-gradient(135deg, #667eea, #764ba2)',
-    width: '30px',
-    borderRadius: '4px 4px 0 0'
-  };
-
-  if (type === 'bar') {
-    return (
-      <div style={chartStyle}>
-        {[60, 80, 45, 90, 75, 85].map((height, index) => (
+      {/* Additional Reports */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginTop: '2rem' }}>
+        {[
+          { title: 'Inventory Report', icon: '📦', type: 'inventory' },
+          { title: 'Vendor Analysis', icon: '🏭', type: 'vendor' },
+          { title: 'Defect Analysis', icon: '⚠️', type: 'defect' },
+          { title: 'Timeline Report', icon: '📅', type: 'timeline' }
+        ].map((report, index) => (
           <div 
             key={index}
-            style={{ ...barStyle, height: `${height}%` }}
-          ></div>
+            style={{
+              background: 'white',
+              padding: '1.5rem',
+              borderRadius: '12px',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-5px)';
+              e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.05)';
+            }}
+            onClick={() => downloadReport(report.type)}
+          >
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>{report.icon}</div>
+            <h4 style={{ margin: '0 0 0.5rem 0', color: '#1f2937' }}>{report.title}</h4>
+            <p style={{ margin: 0, color: '#6b7280', fontSize: '0.9rem' }}>
+              Detailed analysis and insights
+            </p>
+          </div>
         ))}
       </div>
-    );
-  }
-
-  if (type === 'line') {
-    return (
-      <div style={{ ...chartStyle, alignItems: 'center' }}>
-        <div style={{
-          width: '100%',
-          height: '150px',
-          background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1))',
-          border: '1px solid #e5e7eb',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#6b7280'
-        }}>
-          📈 Line Chart Visualization
-        </div>
-      </div>
-    );
-  }
-
-  if (type === 'pie') {
-    return (
-      <div style={{ ...chartStyle, alignItems: 'center' }}>
-        <div style={{
-          width: '150px',
-          height: '150px',
-          borderRadius: '50%',
-          background: 'conic-gradient(#667eea 0% 30%, #764ba2 30% 60%, #10b981 60% 85%, #f59e0b 85% 100%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
-          <div style={{
-            width: '80px',
-            height: '80px',
-            background: 'white',
-            borderRadius: '50%'
-          }}></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (type === 'area') {
-    return (
-      <div style={{ ...chartStyle, alignItems: 'center' }}>
-        <div style={{
-          width: '100%',
-          height: '150px',
-          background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2))',
-          border: '1px solid #e5e7eb',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#6b7280'
-        }}>
-          📊 Area Chart Visualization
-        </div>
-      </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 };
 
 // Helper function to get display name for current page
