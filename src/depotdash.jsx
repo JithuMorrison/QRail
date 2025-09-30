@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { depotService } from './depotserv';
 import QRScanner from './qscan';
+import RulesManagement from './rulesmanage';
 
 // ----------------- QR Scanning Utilities -----------------
 const REDUNDANCY = 3;
@@ -779,6 +780,7 @@ const DepotDashboard = ({ user }) => {
           </div>
         </div>
       </div>
+      <RulesManagement />
     </div>
   );
 };
