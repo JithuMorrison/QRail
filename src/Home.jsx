@@ -111,8 +111,7 @@ const Home = ({ user }) => {
   const statsStyle = {
     background: colors.gradient,
     color: 'white',
-    padding: '4rem 2rem',
-    margin: '4rem 0'
+    padding: '4rem 2rem'
   };
 
   const statsGridStyle = {
