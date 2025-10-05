@@ -221,29 +221,6 @@ const Home = ({ user }) => {
   if (user) {
     return (
       <div style={containerStyle}>
-        <header style={headerStyle}>
-          <nav style={navStyle}>
-            <div style={logoStyle}>QR TrackPro</div>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <span style={{ color: colors.secondary }}>Welcome, {user.name}</span>
-              <Link 
-                to={`/${user.role}`} 
-                style={primaryButtonStyle}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = `0 8px 25px ${colors.primary}60`;
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = `0 4px 15px ${colors.primary}40`;
-                }}
-              >
-                Go to Dashboard
-              </Link>
-            </div>
-          </nav>
-        </header>
-
         <div style={heroStyle}>
           <h1 style={titleStyle}>Welcome to Your Dashboard</h1>
           <p style={subtitleStyle}>
