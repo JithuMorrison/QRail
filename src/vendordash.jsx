@@ -14,9 +14,22 @@ const VendorDashboard = ({ user }) => {
   const [error, setError] = useState('');
   const [downloadedQrs, setDownloadedQrs] = useState([]);
   const [vendorBatches, setVendorBatches] = useState([]);
-  const [showHistory, setShowHistory] = useState(false);
   const [activeTab, setActiveTab] = useState('create');
-  const nav = useNavigate();
+  const navigate = useNavigate();
+
+  // Modern color palette
+  const colors = {
+    primary: '#2563eb',
+    primaryDark: '#1d4ed8',
+    secondary: '#64748b',
+    light: '#f8fafc',
+    dark: '#1e293b',
+    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    gradientDark: 'linear-gradient(135deg, #5a6fd8 0%, #6a4196 100%)',
+    success: '#10b981',
+    warning: '#f59e0b',
+    error: '#dc2626'
+  };
 
   useEffect(() => { 
     loadVendorBatches(); 
@@ -24,21 +37,26 @@ const VendorDashboard = ({ user }) => {
 
   const loadVendorBatches = async () => {
     try {
-      // Mock data for demonstration
       const mockBatches = [
         {
           _id: '1',
           batchNumber: 'BATCH-001',
           materialType: 'Titanium Alloy',
+          warranty: '24 months',
+          fittingType: 'Type A Coupling',
           generatedQrs: Array(5).fill({ objectId: '507f1f77bcf86cd799439011' }),
-          createdDate: new Date().toISOString()
+          createdDate: new Date().toISOString(),
+          status: 'active'
         },
         {
           _id: '2',
           batchNumber: 'BATCH-002', 
           materialType: 'Carbon Fiber',
+          warranty: '36 months',
+          fittingType: 'Bushing Connector',
           generatedQrs: Array(3).fill({ objectId: '507f1f77bcf86cd799439012' }),
-          createdDate: new Date(Date.now() - 86400000).toISOString()
+          createdDate: new Date(Date.now() - 86400000).toISOString(),
+          status: 'completed'
         }
       ];
       setVendorBatches(mockBatches);
@@ -115,8 +133,9 @@ const VendorDashboard = ({ user }) => {
   // Styles
   const containerStyle = {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-    padding: '30px 20px'
+    background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%)',
+    padding: '30px 20px',
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
   };
 
   const headerStyle = {
@@ -128,54 +147,63 @@ const VendorDashboard = ({ user }) => {
   const titleStyle = {
     fontSize: '3rem',
     fontWeight: '800',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: `linear-gradient(135deg, ${colors.dark} 0%, ${colors.primary} 100%)`,
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
-    marginBottom: '10px'
+    marginBottom: '10px',
+    letterSpacing: '-0.02em'
   };
 
   const subtitleStyle = {
     fontSize: '1.2rem',
-    color: '#6c757d',
-    marginBottom: '30px'
+    color: colors.secondary,
+    marginBottom: '30px',
+    fontWeight: '400'
   };
 
   const cardStyle = {
     background: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: '20px',
+    borderRadius: '24px',
     padding: '40px',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.1)',
-    backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(255, 255, 255, 0.3)',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
+    backdropFilter: 'blur(16px)',
+    border: '1px solid rgba(255, 255, 255, 0.4)',
     maxWidth: '1200px',
     margin: '0 auto'
   };
 
   const tabContainerStyle = {
     display: 'flex',
-    gap: '10px',
-    marginBottom: '30px',
-    borderBottom: '2px solid #f0f0f0',
-    paddingBottom: '10px'
+    gap: '8px',
+    marginBottom: '40px',
+    background: 'rgba(0, 0, 0, 0.02)',
+    padding: '8px',
+    borderRadius: '16px',
+    border: '1px solid rgba(0, 0, 0, 0.05)'
   };
 
   const tabStyle = (isActive) => ({
-    padding: '12px 30px',
-    borderRadius: '50px',
+    padding: '14px 28px',
+    borderRadius: '12px',
     border: 'none',
-    background: isActive ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
-    color: isActive ? 'white' : '#6c757d',
+    background: isActive ? colors.gradient : 'transparent',
+    color: isActive ? 'white' : colors.secondary,
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    fontSize: '1rem'
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    fontSize: '0.95rem',
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px'
   });
 
   const formGridStyle = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '25px',
-    marginBottom: '30px'
+    gap: '28px',
+    marginBottom: '35px'
   };
 
   const formGroupStyle = {
@@ -184,114 +212,147 @@ const VendorDashboard = ({ user }) => {
   };
 
   const labelStyle = {
-    marginBottom: '8px',
-    color: '#333',
+    marginBottom: '10px',
+    color: colors.dark,
     fontWeight: '600',
-    fontSize: '0.95rem'
+    fontSize: '0.95rem',
+    letterSpacing: '0.5px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
   };
 
   const inputStyle = {
-    padding: '15px 20px',
-    border: '2px solid #e0e0e0',
+    padding: '16px 20px',
+    border: `2px solid #e2e8f0`,
     borderRadius: '12px',
     fontSize: '1rem',
-    transition: 'all 0.3s ease',
-    background: 'rgba(255, 255, 255, 0.8)'
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    background: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '500',
+    color: colors.dark
   };
 
   const selectStyle = {
     ...inputStyle,
-    cursor: 'pointer'
+    cursor: 'pointer',
+    appearance: 'none',
+    backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+    backgroundPosition: 'right 16px center',
+    backgroundRepeat: 'no-repeat',
+    backgroundSize: '20px'
   };
 
   const buttonStyle = {
-    padding: '15px 40px',
+    padding: '16px 32px',
     borderRadius: '12px',
     border: 'none',
-    fontSize: '1.1rem',
+    fontSize: '1rem',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.3s ease',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '10px'
+    gap: '10px',
+    letterSpacing: '0.5px'
   };
 
   const primaryButtonStyle = {
     ...buttonStyle,
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: colors.gradient,
     color: 'white',
-    boxShadow: '0 5px 20px rgba(102, 126, 234, 0.4)'
+    boxShadow: `0 4px 15px ${colors.primary}40`
   };
 
   const secondaryButtonStyle = {
     ...buttonStyle,
-    background: 'rgba(255, 255, 255, 0.9)',
-    color: '#667eea',
-    border: '2px solid #667eea'
+    background: 'transparent',
+    color: colors.primary,
+    border: `2px solid ${colors.primary}`
   };
 
   const successCardStyle = {
-    background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    background: colors.gradient,
     color: 'white',
-    padding: '30px',
+    padding: '40px',
     borderRadius: '20px',
     textAlign: 'center',
-    marginBottom: '30px'
+    marginBottom: '35px',
+    boxShadow: `0 10px 30px ${colors.primary}30`
   };
 
-  const qrGridStyle = {
+  const statsGridStyle = {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: '25px',
-    marginTop: '30px'
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '20px',
+    marginBottom: '35px'
   };
 
-  const qrCardStyle = {
-    background: 'white',
-    padding: '20px',
-    borderRadius: '15px',
-    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.08)',
-    textAlign: 'center',
-    transition: 'all 0.3s ease',
-    border: '1px solid #f0f0f0'
+  const statCardStyle = {
+    background: 'rgba(255, 255, 255, 0.6)',
+    padding: '25px',
+    borderRadius: '16px',
+    border: '1px solid rgba(255, 255, 255, 0.8)',
+    backdropFilter: 'blur(10px)',
+    textAlign: 'center'
   };
 
   const batchGridStyle = {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '20px',
-    marginTop: '20px'
+    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gap: '24px',
+    marginTop: '30px'
   };
 
   const batchCardStyle = {
     background: 'white',
-    padding: '25px',
-    borderRadius: '15px',
-    boxShadow: '0 5px 20px rgba(0, 0, 0, 0.08)',
-    border: '1px solid #f0f0f0',
-    transition: 'all 0.3s ease'
+    padding: '28px',
+    borderRadius: '16px',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+    border: '1px solid rgba(0, 0, 0, 0.05)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    position: 'relative',
+    overflow: 'hidden'
   };
+
+  const statusBadgeStyle = (status) => ({
+    position: 'absolute',
+    top: '20px',
+    right: '20px',
+    padding: '6px 12px',
+    borderRadius: '20px',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    background: status === 'active' ? colors.success : colors.secondary,
+    color: 'white'
+  });
 
   return (
     <div style={containerStyle}>
       <div style={headerStyle}>
         <h1 style={titleStyle}>Vendor Dashboard</h1>
         <p style={subtitleStyle}>
-          Welcome back, <strong>{user.name}</strong> from {user.organization}
+          Welcome back, <strong style={{color: colors.primary}}>{user.name}</strong> from {user.organization}
         </p>
-        <button style={{
-          backgroundColor: "#4CAF50",
-          color: "white",
-          padding: "12px 24px",
-          border: "none",
-          borderRadius: "8px",
-          cursor: "pointer",
-          fontSize: "16px",
-          fontWeight: "bold",
-          transition: "0.3s",
-        }} onClick={()=>{nav('/analytics/vendor')}}>View Analytics</button>
+        <button 
+          onClick={() => navigate('/analytics/vendor')}
+          style={{
+            ...primaryButtonStyle,
+            margin: '0 auto',
+            background: `linear-gradient(135deg, ${colors.success} 0%, #34d399 100%)`
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'translateY(-2px)';
+            e.target.style.boxShadow = `0 8px 25px ${colors.success}40`;
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'translateY(0)';
+            e.target.style.boxShadow = `0 4px 15px ${colors.success}40`;
+          }}
+        >
+          📊 View Analytics
+        </button>
       </div>
 
       <div style={cardStyle}>
@@ -301,20 +362,23 @@ const VendorDashboard = ({ user }) => {
             style={tabStyle(activeTab === 'create')}
             onClick={() => setActiveTab('create')}
           >
-            🆕 Create Batch
+            <span>🆕</span>
+            Create Batch
           </button>
           <button 
             style={tabStyle(activeTab === 'history')}
             onClick={() => setActiveTab('history')}
           >
-            📚 Batch History
+            <span>📚</span>
+            Batch History
           </button>
           {batch && (
             <button 
               style={tabStyle(activeTab === 'results')}
               onClick={() => setActiveTab('results')}
             >
-              🎉 Current Batch
+              <span>🎉</span>
+              Current Batch
             </button>
           )}
         </div>
@@ -322,19 +386,22 @@ const VendorDashboard = ({ user }) => {
         {/* Create Batch Tab */}
         {activeTab === 'create' && (
           <div>
-            <div style={{textAlign: 'center', marginBottom: '40px'}}>
-              <h2 style={{fontSize: '2rem', color: '#333', marginBottom: '10px'}}>
+            <div style={{textAlign: 'center', marginBottom: '45px'}}>
+              <h2 style={{fontSize: '2.2rem', color: colors.dark, marginBottom: '12px', fontWeight: '700'}}>
                 Create New Batch
               </h2>
-              <p style={{color: '#6c757d', fontSize: '1.1rem'}}>
-                Generate QR codes for your material batches
+              <p style={{color: colors.secondary, fontSize: '1.1rem'}}>
+                Generate QR codes for your material batches with detailed specifications
               </p>
             </div>
 
             <form onSubmit={handleCreateBatch}>
               <div style={formGridStyle}>
                 <div style={formGroupStyle}>
-                  <label style={labelStyle}>Material Type</label>
+                  <label style={labelStyle}>
+                    <span>🏗️</span>
+                    Material Type
+                  </label>
                   <select 
                     name="materialType" 
                     value={batchForm.materialType} 
@@ -342,12 +409,14 @@ const VendorDashboard = ({ user }) => {
                     required
                     style={selectStyle}
                     onFocus={(e) => {
-                      e.target.style.borderColor = '#667eea';
-                      e.target.style.background = 'rgba(102, 126, 234, 0.05)';
+                      e.target.style.borderColor = colors.primary;
+                      e.target.style.background = 'rgba(37, 99, 235, 0.03)';
+                      e.target.style.boxShadow = `0 0 0 3px ${colors.primary}15`;
                     }}
                     onBlur={(e) => {
-                      e.target.style.borderColor = '#e0e0e0';
+                      e.target.style.borderColor = '#e2e8f0';
                       e.target.style.background = 'rgba(255, 255, 255, 0.8)';
+                      e.target.style.boxShadow = 'none';
                     }}
                   >
                     <option value="">Select Material Type</option>
@@ -360,30 +429,38 @@ const VendorDashboard = ({ user }) => {
                 </div>
 
                 <div style={formGroupStyle}>
-                  <label style={labelStyle}>Warranty Period</label>
+                  <label style={labelStyle}>
+                    <span>🛡️</span>
+                    Warranty Period
+                  </label>
                   <input 
                     type="number" 
                     name="warranty" 
                     min="1" 
                     max="120"
-                    placeholder="Enter months"
+                    placeholder="Enter warranty in months"
                     value={batchForm.warranty} 
                     onChange={handleBatchChange} 
                     required
                     style={inputStyle}
                     onFocus={(e) => {
-                      e.target.style.borderColor = '#667eea';
-                      e.target.style.background = 'rgba(102, 126, 234, 0.05)';
+                      e.target.style.borderColor = colors.primary;
+                      e.target.style.background = 'rgba(37, 99, 235, 0.03)';
+                      e.target.style.boxShadow = `0 0 0 3px ${colors.primary}15`;
                     }}
                     onBlur={(e) => {
-                      e.target.style.borderColor = '#e0e0e0';
+                      e.target.style.borderColor = '#e2e8f0';
                       e.target.style.background = 'rgba(255, 255, 255, 0.8)';
+                      e.target.style.boxShadow = 'none';
                     }}
                   />
                 </div>
 
                 <div style={formGroupStyle}>
-                  <label style={labelStyle}>Fitting Type</label>
+                  <label style={labelStyle}>
+                    <span>🔧</span>
+                    Fitting Type
+                  </label>
                   <input 
                     type="text" 
                     name="fittingType" 
@@ -393,35 +470,42 @@ const VendorDashboard = ({ user }) => {
                     required
                     style={inputStyle}
                     onFocus={(e) => {
-                      e.target.style.borderColor = '#667eea';
-                      e.target.style.background = 'rgba(102, 126, 234, 0.05)';
+                      e.target.style.borderColor = colors.primary;
+                      e.target.style.background = 'rgba(37, 99, 235, 0.03)';
+                      e.target.style.boxShadow = `0 0 0 3px ${colors.primary}15`;
                     }}
                     onBlur={(e) => {
-                      e.target.style.borderColor = '#e0e0e0';
+                      e.target.style.borderColor = '#e2e8f0';
                       e.target.style.background = 'rgba(255, 255, 255, 0.8)';
+                      e.target.style.boxShadow = 'none';
                     }}
                   />
                 </div>
 
                 <div style={formGroupStyle}>
-                  <label style={labelStyle}>QR Codes Quantity</label>
+                  <label style={labelStyle}>
+                    <span>📦</span>
+                    QR Codes Quantity
+                  </label>
                   <input 
                     type="number" 
                     name="qrCount" 
                     min="1" 
                     max="100"
-                    placeholder="Number of QR codes"
+                    placeholder="Number of QR codes to generate"
                     value={batchForm.qrCount} 
                     onChange={handleBatchChange} 
                     required
                     style={inputStyle}
                     onFocus={(e) => {
-                      e.target.style.borderColor = '#667eea';
-                      e.target.style.background = 'rgba(102, 126, 234, 0.05)';
+                      e.target.style.borderColor = colors.primary;
+                      e.target.style.background = 'rgba(37, 99, 235, 0.03)';
+                      e.target.style.boxShadow = `0 0 0 3px ${colors.primary}15`;
                     }}
                     onBlur={(e) => {
-                      e.target.style.borderColor = '#e0e0e0';
+                      e.target.style.borderColor = '#e2e8f0';
                       e.target.style.background = 'rgba(255, 255, 255, 0.8)';
+                      e.target.style.boxShadow = 'none';
                     }}
                   />
                 </div>
@@ -429,14 +513,20 @@ const VendorDashboard = ({ user }) => {
 
               {error && (
                 <div style={{
-                  background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)',
-                  color: 'white',
-                  padding: '15px',
-                  borderRadius: '10px',
-                  marginBottom: '20px',
+                  background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+                  color: colors.error,
+                  padding: '16px',
+                  borderRadius: '12px',
+                  marginBottom: '25px',
                   textAlign: 'center',
-                  fontWeight: '500'
+                  fontWeight: '600',
+                  border: `1px solid ${colors.error}20`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
                 }}>
+                  <span>⚠️</span>
                   {error}
                 </div>
               )}
@@ -449,35 +539,33 @@ const VendorDashboard = ({ user }) => {
                   opacity: loading ? 0.7 : 1,
                   margin: '0 auto',
                   display: 'block',
-                  minWidth: '200px'
+                  minWidth: '240px',
+                  padding: '18px 40px',
+                  fontSize: '1.1rem'
                 }}
                 onMouseEnter={(e) => {
                   if (!loading) {
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.6)';
+                    e.target.style.transform = 'translateY(-3px)';
+                    e.target.style.boxShadow = `0 12px 30px ${colors.primary}60`;
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!loading) {
                     e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 5px 20px rgba(102, 126, 234, 0.4)';
+                    e.target.style.boxShadow = `0 4px 15px ${colors.primary}40`;
                   }
                 }}
               >
                 {loading ? (
                   <>
-                    <div style={{
-                      width: '20px',
-                      height: '20px',
-                      border: '2px solid transparent',
-                      borderTop: '2px solid white',
-                      borderRadius: '50%',
+                    <span style={{
+                      display: 'inline-block',
                       animation: 'spin 1s linear infinite'
-                    }}></div>
+                    }}>🔄</span>
                     Creating Batch...
                   </>
                 ) : (
-                  '🚀 Generate Batch'
+                  '🚀 Generate QR Batch'
                 )}
               </button>
             </form>
@@ -487,68 +575,93 @@ const VendorDashboard = ({ user }) => {
         {/* Batch History Tab */}
         {activeTab === 'history' && (
           <div>
-            <div style={{textAlign: 'center', marginBottom: '40px'}}>
-              <h2 style={{fontSize: '2rem', color: '#333', marginBottom: '10px'}}>
+            <div style={{textAlign: 'center', marginBottom: '45px'}}>
+              <h2 style={{fontSize: '2.2rem', color: colors.dark, marginBottom: '12px', fontWeight: '700'}}>
                 Batch History
               </h2>
-              <p style={{color: '#6c757d', fontSize: '1.1rem'}}>
-                View all your previously created batches
+              <p style={{color: colors.secondary, fontSize: '1.1rem'}}>
+                Track and manage all your previously created batches
               </p>
             </div>
 
             {vendorBatches.length > 0 ? (
               <div style={batchGridStyle}>
-                {vendorBatches.map((b) => (
+                {vendorBatches.map((batch) => (
                   <div 
-                    key={b._id} 
+                    key={batch._id} 
                     style={batchCardStyle}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-5px)';
-                      e.currentTarget.style.boxShadow = '0 15px 40px rgba(0, 0, 0, 0.15)';
+                      e.currentTarget.style.transform = 'translateY(-8px)';
+                      e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.15)';
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 5px 20px rgba(0, 0, 0, 0.08)';
+                      e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
                     }}
                   >
+                    <div style={statusBadgeStyle(batch.status)}>
+                      {batch.status}
+                    </div>
+                    
                     <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'flex-start',
-                      marginBottom: '15px'
+                      marginBottom: '20px'
                     }}>
-                      <h3 style={{color: '#333', margin: 0}}>{b.batchNumber}</h3>
+                      <h3 style={{color: colors.dark, margin: 0, fontSize: '1.3rem', fontWeight: '700'}}>
+                        {batch.batchNumber}
+                      </h3>
                       <span style={{
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        background: colors.gradient,
                         color: 'white',
-                        padding: '4px 12px',
+                        padding: '6px 14px',
                         borderRadius: '20px',
                         fontSize: '0.8rem',
                         fontWeight: '600'
                       }}>
-                        {b.generatedQrs.length} QR{b.generatedQrs.length !== 1 ? 's' : ''}
+                        {batch.generatedQrs.length} QR{batch.generatedQrs.length !== 1 ? 's' : ''}
                       </span>
                     </div>
-                    <p style={{color: '#666', margin: '8px 0'}}>
-                      <strong>Material:</strong> {b.materialType}
+                    
+                    <div style={{marginBottom: '20px'}}>
+                      <p style={{color: colors.secondary, margin: '8px 0', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <span>🏗️</span>
+                        <strong>Material:</strong> {batch.materialType}
+                      </p>
+                      <p style={{color: colors.secondary, margin: '8px 0', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <span>🛡️</span>
+                        <strong>Warranty:</strong> {batch.warranty}
+                      </p>
+                      <p style={{color: colors.secondary, margin: '8px 0', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <span>🔧</span>
+                        <strong>Fitting:</strong> {batch.fittingType}
+                      </p>
+                    </div>
+                    
+                    <p style={{color: colors.secondary, margin: '8px 0', fontSize: '0.9rem'}}>
+                      📅 Created: {new Date(batch.createdDate).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
                     </p>
-                    <p style={{color: '#666', margin: '8px 0', fontSize: '0.9rem'}}>
-                      Created: {new Date(b.createdDate).toLocaleDateString()}
-                    </p>
+                    
                     <button 
                       onClick={() => {
-                        setBatch(b);
+                        setBatch(batch);
                         setActiveTab('results');
                       }}
                       style={{
                         ...secondaryButtonStyle,
                         width: '100%',
-                        marginTop: '15px',
-                        padding: '10px 20px',
-                        fontSize: '0.9rem'
+                        marginTop: '20px',
+                        padding: '12px 20px'
                       }}
                     >
-                      View Details
+                      View QR Codes
                     </button>
                   </div>
                 ))}
@@ -556,12 +669,22 @@ const VendorDashboard = ({ user }) => {
             ) : (
               <div style={{
                 textAlign: 'center',
-                padding: '60px 20px',
-                color: '#6c757d'
+                padding: '80px 20px',
+                color: colors.secondary
               }}>
-                <div style={{fontSize: '4rem', marginBottom: '20px'}}>📦</div>
-                <h3 style={{color: '#333', marginBottom: '10px'}}>No batches yet</h3>
-                <p>Create your first batch to get started with QR code generation</p>
+                <div style={{fontSize: '5rem', marginBottom: '25px', opacity: 0.5}}>📦</div>
+                <h3 style={{color: colors.dark, marginBottom: '12px', fontSize: '1.5rem'}}>
+                  No batches created yet
+                </h3>
+                <p style={{fontSize: '1.1rem', marginBottom: '30px'}}>
+                  Create your first batch to start generating QR codes
+                </p>
+                <button 
+                  onClick={() => setActiveTab('create')}
+                  style={primaryButtonStyle}
+                >
+                  🆕 Create First Batch
+                </button>
               </div>
             )}
           </div>
@@ -569,137 +692,18 @@ const VendorDashboard = ({ user }) => {
 
         {/* Results Tab */}
         {activeTab === 'results' && batch && (
-          <div>
-            <div style={successCardStyle}>
-              <div style={{fontSize: '4rem', marginBottom: '20px'}}>🎉</div>
-              <h2 style={{margin: '0 0 10px 0', fontSize: '2.2rem'}}>
-                Batch Created Successfully!
-              </h2>
-              <p style={{margin: '0 0 20px 0', opacity: 0.9}}>
-                Your QR codes are ready for download
-              </p>
-            </div>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-              gap: '20px',
-              marginBottom: '30px'
-            }}>
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.5)',
-                padding: '20px',
-                borderRadius: '15px',
-                border: '1px solid rgba(255, 255, 255, 0.5)'
-              }}>
-                <h4 style={{margin: '0 0 10px 0', color: '#333'}}>Batch Number</h4>
-                <p style={{margin: 0, fontSize: '1.2rem', fontWeight: '600', color: '#667eea'}}>
-                  {batch.batchNumber}
-                </p>
-              </div>
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.5)',
-                padding: '20px',
-                borderRadius: '15px',
-                border: '1px solid rgba(255, 255, 255, 0.5)'
-              }}>
-                <h4 style={{margin: '0 0 10px 0', color: '#333'}}>Material Type</h4>
-                <p style={{margin: 0, fontSize: '1.2rem', fontWeight: '600', color: '#667eea'}}>
-                  {batch.materialType}
-                </p>
-              </div>
-              <div style={{
-                background: 'rgba(255, 255, 255, 0.5)',
-                padding: '20px',
-                borderRadius: '15px',
-                border: '1px solid rgba(255, 255, 255, 0.5)'
-              }}>
-                <h4 style={{margin: '0 0 10px 0', color: '#333'}}>QR Codes</h4>
-                <p style={{margin: 0, fontSize: '1.2rem', fontWeight: '600', color: '#667eea'}}>
-                  {batch.generatedQrs.length}
-                </p>
-              </div>
-            </div>
-
-            <div style={{
-              display: 'flex',
-              gap: '15px',
-              justifyContent: 'center',
-              marginBottom: '30px',
-              flexWrap: 'wrap'
-            }}>
-              <button 
-                onClick={downloadAllQrCodes}
-                style={{
-                  ...primaryButtonStyle,
-                  background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 8px 25px rgba(79, 172, 254, 0.6)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 5px 20px rgba(79, 172, 254, 0.4)';
-                }}
-              >
-                🖼️ Download All QR Images & TXT
-              </button>
-              <button 
-                onClick={createNewBatch}
-                style={secondaryButtonStyle}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.background = '#667eea';
-                  e.target.style.color = 'white';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.background = 'rgba(255, 255, 255, 0.9)';
-                  e.target.style.color = '#667eea';
-                }}
-              >
-                🆕 Create New Batch
-              </button>
-            </div>
-
-            <div>
-              <h3 style={{textAlign: 'center', marginBottom: '30px', color: '#333'}}>
-                Generated QR Codes ({batch.generatedQrs.length})
-              </h3>
-              <div style={qrGridStyle}>
-                {batch.generatedQrs.map((qr, i) => (
-                  <QRPreview 
-                    key={qr.objectId} 
-                    objectId={qr.objectId}
-                    batchNumber={batch.batchNumber} 
-                    index={i}
-                    onDownload={handleQrDownload}
-                    onDownloadTxt={() => downloadQrAsText(qr)}
-                  />
-                ))}
-              </div>
-
-              {downloadedQrs.length === batch.generatedQrs.length && batch.generatedQrs.length > 0 && (
-                <div style={{
-                  background: 'linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%)',
-                  color: 'white',
-                  padding: '20px',
-                  borderRadius: '15px',
-                  textAlign: 'center',
-                  marginTop: '30px',
-                  fontWeight: '600',
-                  fontSize: '1.1rem'
-                }}>
-                  ✅ All {batch.generatedQrs.length} QR codes downloaded successfully!
-                </div>
-              )}
-            </div>
-          </div>
+          <BatchResults 
+            batch={batch}
+            downloadedQrs={downloadedQrs}
+            onDownloadAll={downloadAllQrCodes}
+            onNewBatch={createNewBatch}
+            onQrDownload={handleQrDownload}
+            onDownloadTxt={downloadQrAsText}
+            colors={colors}
+          />
         )}
       </div>
 
-      {/* Add CSS animation for spinner */}
       <style>
         {`
           @keyframes spin {
@@ -712,8 +716,225 @@ const VendorDashboard = ({ user }) => {
   );
 };
 
+/* ------------ Batch Results Component ------------ */
+const BatchResults = ({ batch, downloadedQrs, onDownloadAll, onNewBatch, onQrDownload, onDownloadTxt, colors }) => {
+  const [showAllQrs, setShowAllQrs] = useState(false);
+  
+  const displayedQrs = showAllQrs ? batch.generatedQrs : batch.generatedQrs.slice(0, 8);
+
+  return (
+    <div>
+      <div style={{
+        background: colors.gradient,
+        color: 'white',
+        padding: '40px',
+        borderRadius: '20px',
+        textAlign: 'center',
+        marginBottom: '35px',
+        boxShadow: `0 10px 30px ${colors.primary}30`
+      }}>
+        <div style={{fontSize: '4rem', marginBottom: '20px'}}>🎉</div>
+        <h2 style={{margin: '0 0 12px 0', fontSize: '2.2rem', fontWeight: '700'}}>
+          Batch Created Successfully!
+        </h2>
+        <p style={{margin: '0 0 25px 0', opacity: 0.9, fontSize: '1.1rem'}}>
+          Your QR codes are ready for download and distribution
+        </p>
+      </div>
+
+      {/* Batch Stats */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: '20px',
+        marginBottom: '35px'
+      }}>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.6)',
+          padding: '25px',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(10px)',
+          textAlign: 'center'
+        }}>
+          <h4 style={{margin: '0 0 10px 0', color: colors.dark, fontSize: '0.9rem', fontWeight: '600'}}>Batch Number</h4>
+          <p style={{margin: 0, fontSize: '1.3rem', fontWeight: '700', color: colors.primary}}>
+            {batch.batchNumber}
+          </p>
+        </div>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.6)',
+          padding: '25px',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(10px)',
+          textAlign: 'center'
+        }}>
+          <h4 style={{margin: '0 0 10px 0', color: colors.dark, fontSize: '0.9rem', fontWeight: '600'}}>Material Type</h4>
+          <p style={{margin: 0, fontSize: '1.3rem', fontWeight: '700', color: colors.primary}}>
+            {batch.materialType}
+          </p>
+        </div>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.6)',
+          padding: '25px',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.8)',
+          backdropFilter: 'blur(10px)',
+          textAlign: 'center'
+        }}>
+          <h4 style={{margin: '0 0 10px 0', color: colors.dark, fontSize: '0.9rem', fontWeight: '600'}}>QR Codes</h4>
+          <p style={{margin: 0, fontSize: '1.3rem', fontWeight: '700', color: colors.primary}}>
+            {batch.generatedQrs.length}
+          </p>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div style={{
+        display: 'flex',
+        gap: '15px',
+        justifyContent: 'center',
+        marginBottom: '40px',
+        flexWrap: 'wrap'
+      }}>
+        <button 
+          onClick={onDownloadAll}
+          style={{
+            padding: '16px 32px',
+            borderRadius: '12px',
+            border: 'none',
+            fontSize: '1rem',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+            letterSpacing: '0.5px',
+            background: `linear-gradient(135deg, ${colors.success} 0%, #34d399 100%)`,
+            color: 'white',
+            boxShadow: `0 4px 15px ${colors.success}40`
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'translateY(-3px)';
+            e.target.style.boxShadow = `0 12px 30px ${colors.success}60`;
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'translateY(0)';
+            e.target.style.boxShadow = `0 4px 15px ${colors.success}40`;
+          }}
+        >
+          🖼️ Download All QR Codes
+        </button>
+        <button 
+          onClick={onNewBatch}
+          style={{
+            padding: '16px 32px',
+            borderRadius: '12px',
+            border: `2px solid ${colors.primary}`,
+            fontSize: '1rem',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+            letterSpacing: '0.5px',
+            background: 'transparent',
+            color: colors.primary
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'translateY(-3px)';
+            e.target.style.background = colors.primary;
+            e.target.style.color = 'white';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'translateY(0)';
+            e.target.style.background = 'transparent';
+            e.target.style.color = colors.primary;
+          }}
+        >
+          🆕 Create New Batch
+        </button>
+      </div>
+
+      {/* QR Codes Grid */}
+      <div>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '30px',
+          flexWrap: 'wrap',
+          gap: '15px'
+        }}>
+          <h3 style={{color: colors.dark, margin: 0, fontSize: '1.5rem', fontWeight: '700'}}>
+            Generated QR Codes ({batch.generatedQrs.length})
+          </h3>
+          
+          {batch.generatedQrs.length > 8 && (
+            <button 
+              onClick={() => setShowAllQrs(!showAllQrs)}
+              style={{
+                padding: '10px 20px',
+                borderRadius: '8px',
+                border: `1px solid ${colors.primary}`,
+                background: 'transparent',
+                color: colors.primary,
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              {showAllQrs ? '👆 Show Less' : '👇 Show All'}
+            </button>
+          )}
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+          gap: '25px',
+          marginTop: '20px'
+        }}>
+          {displayedQrs.map((qr, i) => (
+            <QRPreview 
+              key={qr.objectId} 
+              objectId={qr.objectId}
+              batchNumber={batch.batchNumber} 
+              index={i}
+              onDownload={onQrDownload}
+              onDownloadTxt={() => onDownloadTxt(qr)}
+              colors={colors}
+            />
+          ))}
+        </div>
+
+        {downloadedQrs.length === batch.generatedQrs.length && batch.generatedQrs.length > 0 && (
+          <div style={{
+            background: `linear-gradient(135deg, ${colors.success} 0%, #34d399 100%)`,
+            color: 'white',
+            padding: '25px',
+            borderRadius: '16px',
+            textAlign: 'center',
+            marginTop: '35px',
+            fontWeight: '600',
+            fontSize: '1.1rem',
+            boxShadow: `0 5px 20px ${colors.success}30`
+          }}>
+            ✅ All {batch.generatedQrs.length} QR codes downloaded successfully!
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /* ------------ QR Preview Component ------------ */
-const QRPreview = ({ objectId, batchNumber, index, onDownload, onDownloadTxt }) => {
+const QRPreview = ({ objectId, batchNumber, index, onDownload, onDownloadTxt, colors }) => {
   const canvasRef = useRef(null);
   
   useEffect(() => {
@@ -733,35 +954,23 @@ const QRPreview = ({ objectId, batchNumber, index, onDownload, onDownloadTxt }) 
   const qrCardStyle = {
     background: 'white',
     padding: '20px',
-    borderRadius: '15px',
-    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.08)',
+    borderRadius: '16px',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
     textAlign: 'center',
-    transition: 'all 0.3s ease',
-    border: '1px solid #f0f0f0'
-  };
-
-  const buttonStyle = {
-    padding: '8px 15px',
-    borderRadius: '8px',
-    border: 'none',
-    fontSize: '0.8rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    margin: '5px',
-    flex: 1
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    border: '1px solid rgba(0, 0, 0, 0.05)'
   };
 
   return (
     <div 
       style={qrCardStyle}
       onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-5px)';
+        e.currentTarget.style.transform = 'translateY(-8px)';
         e.currentTarget.style.boxShadow = '0 15px 40px rgba(0, 0, 0, 0.15)';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0)';
-        e.currentTarget.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.08)';
+        e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)';
       }}
     >
       <canvas 
@@ -772,28 +981,35 @@ const QRPreview = ({ objectId, batchNumber, index, onDownload, onDownloadTxt }) 
           width: '140px', 
           height: '140px', 
           border: '1px solid #f0f0f0',
-          borderRadius: '10px',
+          borderRadius: '12px',
           background: 'white'
         }}
       />
       <p style={{ 
-        margin: '10px 0 5px 0', 
-        fontSize: '0.8rem', 
-        color: '#666',
+        margin: '15px 0 5px 0', 
+        fontSize: '0.85rem', 
+        color: colors.dark,
         fontWeight: '600'
       }}>
         QR #{index + 1}
       </p>
-      <div style={{ display: 'flex', gap: '5px', marginTop: '10px' }}>
+      <div style={{ display: 'flex', gap: '8px', marginTop: '15px' }}>
         <button 
           onClick={download}
           style={{
-            ...buttonStyle,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            border: 'none',
+            fontSize: '0.8rem',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            flex: 1,
+            background: colors.gradient,
             color: 'white'
           }}
           onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-1px)';
+            e.target.style.transform = 'translateY(-2px)';
           }}
           onMouseLeave={(e) => {
             e.target.style.transform = 'translateY(0)';
@@ -804,20 +1020,26 @@ const QRPreview = ({ objectId, batchNumber, index, onDownload, onDownloadTxt }) 
         <button 
           onClick={onDownloadTxt}
           style={{
-            ...buttonStyle,
-            background: 'rgba(255, 255, 255, 0.9)',
-            color: '#667eea',
-            border: '1px solid #667eea'
+            padding: '8px 12px',
+            borderRadius: '8px',
+            border: `1px solid ${colors.primary}`,
+            fontSize: '0.8rem',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            flex: 1,
+            background: 'transparent',
+            color: colors.primary
           }}
           onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-1px)';
-            e.target.style.background = '#667eea';
+            e.target.style.transform = 'translateY(-2px)';
+            e.target.style.background = colors.primary;
             e.target.style.color = 'white';
           }}
           onMouseLeave={(e) => {
             e.target.style.transform = 'translateY(0)';
-            e.target.style.background = 'rgba(255, 255, 255, 0.9)';
-            e.target.style.color = '#667eea';
+            e.target.style.background = 'transparent';
+            e.target.style.color = colors.primary;
           }}
         >
           TXT
