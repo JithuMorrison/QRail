@@ -348,6 +348,7 @@ const InstallationDashboard = ({ user }) => {
     background: `linear-gradient(135deg, ${colors.success} 0%, #34d399 100%)`,
     color: 'white',
     boxShadow: `0 4px 15px ${colors.success}40`,
+    margin: '0 auto'
   };
 
   return (
