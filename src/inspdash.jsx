@@ -966,7 +966,9 @@ const InspectorDashboard = ({ user }) => {
               borderRadius: '6px',
               cursor: 'pointer',
               fontWeight: '600'
-            }}>
+            }}
+            onClick={() => nav("/work-order/123")}
+            >
               📋 Create Work Order
             </button>
             <button style={{

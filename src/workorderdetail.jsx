@@ -399,47 +399,4 @@ const WorkOrderDetail = ({ user }) => {
   );
 };
 
-// Mock service
-export const maintenanceService = {
-  async getWorkOrder(id) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return {
-      id: id,
-      title: 'Emergency Gauge Adjustment',
-      defectType: 'Gauge Widening',
-      priority: 'critical',
-      status: 'in-progress',
-      assignedTo: 'Track Maintenance A',
-      dueDate: '2024-01-20',
-      progress: 60,
-      chainage: 45.2,
-      description: 'Urgent gauge adjustment required at chainage 45.2km. Track parameters showing critical gauge widening beyond safety thresholds.'
-    };
-  },
-  async getWorkOrderUpdates(id) {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    return [
-      {
-        progress: 25,
-        status: 'in-progress',
-        notes: 'Initial assessment completed. Safety barriers installed.',
-        updatedBy: 'John Doe',
-        timestamp: '2024-01-18T10:30:00Z'
-      },
-      {
-        progress: 60,
-        status: 'in-progress',
-        notes: 'Gauge measurement completed. Adjustment in progress.',
-        updatedBy: 'John Doe',
-        timestamp: '2024-01-19T14:20:00Z'
-      }
-    ];
-  },
-  async updateWorkOrder(id, update) {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    console.log('Updating work order:', id, update);
-    return { success: true };
-  }
-};
-
 export default WorkOrderDetail;

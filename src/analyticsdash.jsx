@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { analyticsService } from './analyticsserv';
 import { useParams } from 'react-router-dom';
 
-const AnalyticsDashboard = ({ user}) => {
+const AnalyticsDashboard = ({ user }) => {
   const { currentPage } = useParams();
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -225,6 +225,15 @@ const AnalyticsDashboard = ({ user}) => {
         <button 
           style={{
             ...styles.navTab,
+            ...(activeSection === 'maintenance' && styles.navTabActive)
+          }}
+          onClick={() => setActiveSection('maintenance')}
+        >
+          🔧 Maintenance Analytics
+        </button>
+        <button 
+          style={{
+            ...styles.navTab,
             ...(activeSection === 'reports' && styles.navTabActive)
           }}
           onClick={() => setActiveSection('reports')}
@@ -268,6 +277,15 @@ const AnalyticsDashboard = ({ user}) => {
         {/* AI Summarization Section */}
         {activeSection === 'ai-summary' && (
           <AISummarySection 
+            data={analyticsData}
+            currentPage={currentPage}
+            styles={styles}
+          />
+        )}
+
+        {/* Maintenance Analytics Section */}
+        {activeSection === 'maintenance' && (
+          <MaintenanceAnalyticsSection 
             data={analyticsData}
             currentPage={currentPage}
             styles={styles}
@@ -334,6 +352,13 @@ const OverviewSection = ({ data, currentPage, styles }) => {
           { title: 'Defect Rate', value: `${data?.defectRate || 0}%`, icon: '⚠️', change: '-5%' },
           { title: 'Approval Rate', value: `${data?.approvalRate || 0}%`, icon: '✅', change: '+4%' },
           { title: 'Avg Inspection Time', value: `${data?.avgInspectionTime || 0}m`, icon: '⏱️', change: '-12%' }
+        ];
+      case 'maintenance':
+        return [
+          { title: 'Work Orders Completed', value: data?.workOrdersCompleted || 0, icon: '🔧', change: '+18%' },
+          { title: 'Active Work Orders', value: data?.activeWorkOrders || 0, icon: '📋', change: '+8%' },
+          { title: 'On-Time Completion', value: `${data?.onTimeCompletion || 0}%`, icon: '✅', change: '+5%' },
+          { title: 'Avg Repair Time', value: `${data?.avgRepairTime || 0}h`, icon: '⏱️', change: '-12%' }
         ];
       default:
         return baseStats;
@@ -412,6 +437,147 @@ const OverviewSection = ({ data, currentPage, styles }) => {
           <div style={styles.chartContainer}>
             <AreaChart data={data?.timeline || [45, 52, 48, 61, 55, 68, 72]} />
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Maintenance Analytics Section Component
+const MaintenanceAnalyticsSection = ({ data, currentPage, styles }) => {
+  const maintenanceStats = [
+    { title: 'Critical Repairs', value: data?.criticalRepairs || 12, icon: '🚨', change: '+2' },
+    { title: 'Preventive Maintenance', value: data?.preventiveMaintenance || 45, icon: '🛡️', change: '+8' },
+    { title: 'Backlog Tasks', value: data?.backlogTasks || 23, icon: '📋', change: '-5' },
+    { title: 'Resource Utilization', value: `${data?.resourceUtilization || 78}%`, icon: '👥', change: '+12%' }
+  ];
+
+  const workOrderBreakdown = [
+    { type: 'Emergency Repairs', count: 8, color: '#ef4444' },
+    { type: 'Scheduled Maintenance', count: 25, color: '#3b82f6' },
+    { type: 'Preventive Checks', count: 32, color: '#10b981' },
+    { type: 'Inspections', count: 18, color: '#f59e0b' }
+  ];
+
+  return (
+    <div>
+      {/* Maintenance Overview */}
+      <div style={styles.section}>
+        <h2 style={{ margin: '0 0 1.5rem 0', color: '#1f2937', fontSize: '1.8rem' }}>
+          🔧 Maintenance Operations
+        </h2>
+        <div style={styles.statsGrid}>
+          {maintenanceStats.map((stat, index) => (
+            <div 
+              key={index}
+              style={styles.statCard}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.9, marginBottom: '0.5rem' }}>
+                    {stat.title}
+                  </div>
+                  <div style={{ fontSize: '2.5rem', fontWeight: 'bold', lineHeight: 1 }}>
+                    {stat.value}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', opacity: 0.9, marginTop: '0.5rem' }}>
+                    {stat.change} from last period
+                  </div>
+                </div>
+                <div style={{ fontSize: '3rem' }}>
+                  {stat.icon}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+        {/* Work Order Analysis */}
+        <div style={styles.section}>
+          <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Work Order Breakdown</h3>
+          <div style={styles.chartContainer}>
+            <div style={{ height: '300px', display: 'flex', alignItems: 'end', justifyContent: 'space-around', padding: '1rem' }}>
+              {workOrderBreakdown.map((item, index) => (
+                <div key={index} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div
+                    style={{
+                      background: item.color,
+                      width: '40px',
+                      height: `${(item.count / 50) * 200}px`,
+                      borderRadius: '6px 6px 0 0',
+                      marginBottom: '0.5rem'
+                    }}
+                  ></div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontWeight: '600', color: '#1f2937' }}>{item.count}</div>
+                    <div style={{ fontSize: '0.7rem', color: '#6b7280' }}>{item.type}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Priority Distribution */}
+        <div style={styles.section}>
+          <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Priority Distribution</h3>
+          <div style={styles.chartContainer}>
+            <PieChart data={[15, 25, 40, 20]} />
+            <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {[
+                  { label: 'Critical', color: '#ef4444', count: 15 },
+                  { label: 'High', color: '#f59e0b', count: 25 },
+                  { label: 'Medium', color: '#3b82f6', count: 40 },
+                  { label: 'Low', color: '#10b981', count: 20 }
+                ].map((item, index) => (
+                  <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ width: '12px', height: '12px', background: item.color, borderRadius: '2px' }}></div>
+                    <span style={{ fontSize: '0.8rem' }}>{item.label}: {item.count}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Maintenance Efficiency */}
+      <div style={styles.section}>
+        <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Maintenance Efficiency</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+          {[
+            { metric: 'First-Time Fix Rate', value: '92%', trend: '+3%' },
+            { metric: 'Mean Time to Repair', value: '4.2h', trend: '-0.8h' },
+            { metric: 'Schedule Compliance', value: '88%', trend: '+5%' },
+            { metric: 'Cost per Repair', value: '$245', trend: '-12%' }
+          ].map((item, index) => (
+            <div key={index} style={{
+              background: 'white',
+              padding: '1.5rem',
+              borderRadius: '12px',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem' }}>
+                {item.value}
+              </div>
+              <div style={{ fontSize: '0.9rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                {item.metric}
+              </div>
+              <div style={{ 
+                fontSize: '0.8rem', 
+                color: item.trend.includes('+') || item.trend.includes('-') ? 
+                      (item.trend.includes('-') ? '#10b981' : '#f59e0b') : '#6b7280'
+              }}>
+                {item.trend}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -722,6 +888,16 @@ const AISummarySection = ({ data, currentPage, styles }) => {
           "Inspection throughput increased by 28% with digital workflow",
           "Alert: Vendor 'SteelWorks' showing 12% higher defect rate than average"
         ]
+      },
+      maintenance: {
+        title: "Maintenance Operations Insights",
+        points: [
+          "Emergency repair response time improved by 25% with new dispatch system",
+          "Preventive maintenance compliance reached 92% - exceeding target by 7%",
+          "Most frequent repair: Track alignment adjustments (28% of total work orders)",
+          "Crew utilization optimized to 85% through better scheduling",
+          "Alert: Section C-15 showing recurring gauge issues - recommend detailed inspection"
+        ]
       }
     };
 
@@ -816,7 +992,7 @@ const AISummarySection = ({ data, currentPage, styles }) => {
             💡 Strategic Recommendation
           </h4>
           <p style={{ margin: 0, color: '#92400e' }}>
-            Based on current trends, consider implementing automated quality checks during the {currentPage === 'vendor' ? 'batch creation' : currentPage === 'depot' ? 'storage process' : currentPage === 'installation' ? 'installation phase' : 'inspection stage'} to further improve efficiency by approximately 15-20%.
+            Based on current trends, consider implementing automated quality checks during the {currentPage === 'vendor' ? 'batch creation' : currentPage === 'depot' ? 'storage process' : currentPage === 'installation' ? 'installation phase' : currentPage === 'maintenance' ? 'maintenance scheduling' : 'inspection stage'} to further improve efficiency by approximately 15-20%.
           </p>
         </div>
       </div>
@@ -911,7 +1087,9 @@ const ReportsSection = ({ data, styles }) => {
           { title: 'Inventory Report', icon: '📦', type: 'inventory' },
           { title: 'Vendor Analysis', icon: '🏭', type: 'vendor' },
           { title: 'Defect Analysis', icon: '⚠️', type: 'defect' },
-          { title: 'Timeline Report', icon: '📅', type: 'timeline' }
+          { title: 'Timeline Report', icon: '📅', type: 'timeline' },
+          { title: 'Maintenance Log', icon: '🔧', type: 'maintenance' },
+          { title: 'Resource Report', icon: '👥', type: 'resources' }
         ].map((report, index) => (
           <div 
             key={index}
@@ -952,7 +1130,8 @@ const getPageDisplayName = (page) => {
     vendor: 'Vendor Dashboard',
     depot: 'Depot Dashboard', 
     installation: 'Installation Dashboard',
-    inspector: 'Inspector Dashboard'
+    inspector: 'Inspector Dashboard',
+    maintenance: 'Maintenance Dashboard'
   };
   return names[page] || 'Analytics';
 };
