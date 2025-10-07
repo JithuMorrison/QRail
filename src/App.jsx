@@ -12,6 +12,7 @@ import { authService } from './services';
 import './App.css';
 import AnalyticsDashboard from './analyticsdash';
 import RulesManagement from './rulesmanage';
+import MaintenanceDashboard from './maindash';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -68,6 +69,10 @@ function App() {
           <Route 
             path="/inspector" 
             element={user?.role === 'inspector' ? <InspectorDashboard user={user} /> : <Navigate to="/" />} 
+          />
+          <Route 
+            path="/maintenance" 
+            element={user?.role === 'maintenance' ? <MaintenanceDashboard user={user} /> : <Navigate to="/" />} 
           />
         </Routes>
       </div>
