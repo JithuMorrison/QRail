@@ -13,6 +13,7 @@ import './App.css';
 import AnalyticsDashboard from './analyticsdash';
 import RulesManagement from './rulesmanage';
 import MaintenanceDashboard from './maindash';
+import WorkOrderDetail from './workorderdetail';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -53,6 +54,8 @@ function App() {
           <Route path="/login" element={!user ? <Login onLogin={login} /> : <Navigate to={`/${user.role}`} />} />
           <Route path="/register" element={!user ? <Register /> : <Navigate to="/login" />} />
           <Route path="/analytics/:currentPage" element={<AnalyticsDashboard user={user} />} />
+          <Route path="/work-order/:workOrderId" element={<WorkOrderDetail user={user} />} />
+          <Route path="/defect-report" element={<DefectReport user={user} />} />
           <Route path="/rules" element={<RulesManagement user={user}/>} />
           <Route 
             path="/vendor" 
