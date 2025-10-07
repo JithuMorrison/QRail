@@ -14,6 +14,7 @@ import AnalyticsDashboard from './analyticsdash';
 import RulesManagement from './rulesmanage';
 import MaintenanceDashboard from './maindash';
 import WorkOrderDetail from './workorderdetail';
+import DefectReport from './defectreport';
 
 function App() {
   const [user, setUser] = useState(null);
