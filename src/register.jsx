@@ -307,6 +307,7 @@ const Register = () => {
               <option value="depot">📦 Depot Staff</option>
               <option value="installation">🔧 Installation Crew</option>
               <option value="inspector">✅ Inspector</option>
+              <option value="maintenance">✅ Maintenance Crew</option>
             </select>
             <div style={roleDescriptionStyle}>
               {getRoleIcon(formData.role)} {roleDescriptions[formData.role]}
