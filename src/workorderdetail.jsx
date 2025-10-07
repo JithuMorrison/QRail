@@ -38,14 +38,27 @@ const WorkOrderDetail = ({ user }) => {
     const createNew = searchParams.get('create');
     
     if (createNew === 'true' && defectId) {
+      // Inspector creating work order from defect
       setIsCreating(true);
       loadDefectData(defectId);
     } else if (workOrderId && workOrderId !== 'new') {
-      loadWorkOrderDetails();
-    } else {
-      setIsCreating(true);
+      // Viewing existing work order - only allowed for maintenance
+      if (user.role === 'maintenance') {
+        loadWorkOrderDetails();
+      } else {
+        // Redirect inspectors back to their dashboard
+        navigate('/inspector');
+      }
+    } else if (workOrderId === 'new') {
+      // Creating new work order without defect - only allowed for maintenance
+      if (user.role === 'maintenance') {
+        setIsCreating(true);
+      } else {
+        // Redirect inspectors to defect reporting
+        navigate('/defect-report');
+      }
     }
-  }, [workOrderId, location.search]);
+  }, [workOrderId, location.search, user.role, navigate]);
 
   const loadDefectData = async (defectId) => {
     try {
@@ -55,10 +68,11 @@ const WorkOrderDetail = ({ user }) => {
       // Pre-fill form with defect data
       setCreationForm(prev => ({
         ...prev,
-        title: `Repair: ${defect.type} at ${defect.chainage}km`,
-        defectType: defect.type,
-        description: `Address ${defect.type} identified at chainage ${defect.chainage}km. ${defect.maintenanceRequired}`,
-        priority: defect.severity === 'critical' ? 'critical' : 'high'
+        title: `Repair: ${defect.defectType} at ${defect.chainage}km`,
+        defectType: defect.defectType,
+        description: `Address ${defect.defectType} identified at chainage ${defect.chainage}km. ${defect.description}`,
+        priority: defect.severity === 'critical' ? 'critical' : 'high',
+        chainage: defect.chainage
       }));
     } catch (error) {
       console.error('Failed to load defect data:', error);
@@ -87,16 +101,25 @@ const WorkOrderDetail = ({ user }) => {
       setLoading(true);
       const workOrderData = {
         ...creationForm,
-        defectId: defectData?.id,
+        defectId: defectData?.defectId,
         chainage: defectData?.chainage,
-        reportedBy: user.name,
-        createdFrom: 'inspector'
+        createdBy: user.id,
+        createdByName: user.name,
+        createdFrom: user.role
       };
       
       const result = await maintenanceService.createWorkOrder(workOrderData);
       
-      // Navigate to the newly created work order
-      navigate(`/work-order/${result.id}`);
+      // Navigate based on user role
+      if (user.role === 'inspector') {
+        // Redirect inspector back to their dashboard after creation
+        navigate('/inspector', { 
+          state: { message: `Work order ${result.workOrder.id} created successfully!` } 
+        });
+      } else {
+        // Redirect maintenance to the newly created work order
+        navigate(`/work-order/${result.workOrder.id}`);
+      }
     } catch (error) {
       console.error('Failed to create work order:', error);
       alert('Failed to create work order. Please try again.');
@@ -247,10 +270,16 @@ const WorkOrderDetail = ({ user }) => {
     if (isCreating) {
       return user.role === 'inspector' ? '/inspector' : '/maintenance';
     }
-    return user.role === 'inspector' && workOrder?.createdFrom === 'inspector' ? '/inspector' : '/maintenance';
+    return '/maintenance'; // Only maintenance can view work orders
   };
 
-  if (loading) {
+  // Redirect inspectors trying to view work orders directly
+  if (!isCreating && user.role === 'inspector') {
+    navigate('/inspector');
+    return null;
+  }
+
+  if (loading && !isCreating) {
     return (
       <div style={styles.container}>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem', color: 'white' }}>
@@ -270,7 +299,7 @@ const WorkOrderDetail = ({ user }) => {
     );
   }
 
-  // Create Work Order Form (Inspector)
+  // Create Work Order Form (for both inspector and maintenance)
   if (isCreating) {
     return (
       <div style={styles.container}>
@@ -299,20 +328,25 @@ const WorkOrderDetail = ({ user }) => {
                   marginBottom: '0.5rem'
                 }}
               >
-                ← Back to {user.role === 'inspector' ? 'Inspector' : 'Maintenance'}
+                ← Back to {user.role === 'inspector' ? 'Inspector Dashboard' : 'Maintenance Dashboard'}
               </button>
               <h1 style={{ margin: '0', color: '#1f2937', fontSize: '2rem', fontWeight: '700' }}>
                 📋 Create New Work Order
               </h1>
               <p style={{ margin: '0.5rem 0 0 0', color: '#6b7280' }}>
-                {defectData ? `Based on defect at chainage ${defectData.chainage}km` : 'Create a new maintenance work order'}
+                {defectData 
+                  ? `Based on defect at chainage ${defectData.chainage}km` 
+                  : user.role === 'maintenance' 
+                    ? 'Create a new maintenance work order' 
+                    : 'Create work order from defect report'
+                }
               </p>
             </div>
           </div>
         </header>
 
         <main style={styles.main}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: defectData ? '2fr 1fr' : '1fr', gap: '2rem' }}>
             {/* Left Column - Form */}
             <div style={styles.section}>
               <h2 style={{ margin: '0 0 1.5rem 0', color: '#1f2937' }}>Work Order Details</h2>
@@ -345,6 +379,7 @@ const WorkOrderDetail = ({ user }) => {
                       <option value="track-settlement">Track Settlement</option>
                       <option value="alignment-issue">Alignment Issue</option>
                       <option value="surface-defect">Surface Defect</option>
+                      <option value="preventive">Preventive Maintenance</option>
                       <option value="other">Other</option>
                     </select>
                   </div>
@@ -396,6 +431,20 @@ const WorkOrderDetail = ({ user }) => {
                     />
                   </div>
                 </div>
+
+                {user.role === 'maintenance' && !defectData && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Chainage (km)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={creationForm.chainage || ''}
+                      onChange={(e) => setCreationForm({...creationForm, chainage: e.target.value})}
+                      style={styles.input}
+                      placeholder="Enter chainage in kilometers"
+                    />
+                  </div>
+                )}
 
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Estimated Duration</label>
@@ -461,8 +510,9 @@ const WorkOrderDetail = ({ user }) => {
                   <button
                     type="submit"
                     style={styles.button}
+                    disabled={loading}
                   >
-                    🛠️ Create Work Order
+                    {loading ? 'Creating...' : '🛠️ Create Work Order'}
                   </button>
                 </div>
               </form>
@@ -479,7 +529,7 @@ const WorkOrderDetail = ({ user }) => {
                   borderLeft: `4px solid ${getStatusColor(defectData.severity)}`
                 }}>
                   <h4 style={{ margin: '0 0 0.5rem 0', color: '#1f2937' }}>
-                    {defectData.type} at {defectData.chainage}km
+                    {defectData.defectType} at {defectData.chainage}km
                   </h4>
                   <div style={{ 
                     ...styles.statusBadge, 
@@ -489,10 +539,15 @@ const WorkOrderDetail = ({ user }) => {
                     {defectData.severity.toUpperCase()}
                   </div>
                   <p style={{ margin: '0 0 1rem 0', color: '#4b5563' }}>
-                    <strong>Maintenance Required:</strong> {defectData.maintenanceRequired}
+                    <strong>Description:</strong> {defectData.description}
                   </p>
+                  {defectData.recommendedActions && (
+                    <p style={{ margin: '0 0 1rem 0', color: '#4b5563' }}>
+                      <strong>Recommended Actions:</strong> {defectData.recommendedActions}
+                    </p>
+                  )}
                   <div style={{ fontSize: '0.9rem', color: '#6b7280' }}>
-                    Detected: {new Date(defectData.detectedAt).toLocaleDateString()}
+                    Reported: {new Date(defectData.reportedAt).toLocaleDateString()}
                   </div>
                 </div>
               </div>
@@ -503,14 +558,14 @@ const WorkOrderDetail = ({ user }) => {
     );
   }
 
-  // Existing Work Order View (Maintenance/Inspector)
+  // Existing Work Order View (Maintenance only)
   if (!workOrder) {
     return (
       <div style={styles.container}>
         <div style={{ textAlign: 'center', padding: '3rem', color: 'white' }}>
           <h2>Work Order Not Found</h2>
           <button 
-            onClick={() => navigate(getBackButtonPath())}
+            onClick={() => navigate('/maintenance')}
             style={{
               background: 'white',
               color: '#0f766e',
@@ -522,13 +577,14 @@ const WorkOrderDetail = ({ user }) => {
               marginTop: '1rem'
             }}
           >
-            ← Back to {user.role === 'inspector' ? 'Inspector' : 'Maintenance'}
+            ← Back to Maintenance Dashboard
           </button>
         </div>
       </div>
     );
   }
 
+  // Work Order Detail View (Maintenance only)
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -543,7 +599,7 @@ const WorkOrderDetail = ({ user }) => {
         }}>
           <div>
             <button 
-              onClick={() => navigate(getBackButtonPath())}
+              onClick={() => navigate('/maintenance')}
               style={{
                 background: 'none',
                 border: 'none',
@@ -556,7 +612,7 @@ const WorkOrderDetail = ({ user }) => {
                 marginBottom: '0.5rem'
               }}
             >
-              ← Back to {user.role === 'inspector' && workOrder.createdFrom === 'inspector' ? 'Inspector' : 'Maintenance'}
+              ← Back to Maintenance Dashboard
             </button>
             <h1 style={{ margin: '0', color: '#1f2937', fontSize: '2rem', fontWeight: '700' }}>
               🔧 Work Order: {workOrder.id}
@@ -700,182 +756,138 @@ const WorkOrderDetail = ({ user }) => {
             </div>
           </div>
 
-          {/* Right Column - Only show for maintenance crew */}
-          {user.role === 'maintenance' && (
-            <div>
-              {/* Progress Update Form */}
-              <div style={styles.section}>
-                <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Update Progress</h3>
-                
-                <form onSubmit={handleUpdateProgress}>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
-                      Progress (%)
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={newUpdate.progress}
-                      onChange={(e) => setNewUpdate({...newUpdate, progress: parseInt(e.target.value)})}
-                      style={{ width: '100%' }}
-                    />
-                    <div style={{ textAlign: 'center', fontWeight: '600', marginTop: '0.5rem' }}>
-                      {newUpdate.progress}%
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
-                      Status
-                    </label>
-                    <select
-                      value={newUpdate.status}
-                      onChange={(e) => setNewUpdate({...newUpdate, status: e.target.value})}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '2px solid #e5e7eb',
-                        borderRadius: '8px',
-                        fontSize: '1rem'
-                      }}
-                    >
-                      <option value="in-progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                      <option value="pending">Pending</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </div>
-
-                  <div style={{ marginBottom: '1rem' }}>
-                    <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
-                      Notes
-                    </label>
-                    <textarea
-                      value={newUpdate.notes}
-                      onChange={(e) => setNewUpdate({...newUpdate, notes: e.target.value})}
-                      rows="4"
-                      placeholder="Add update notes, work performed, issues encountered..."
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem',
-                        border: '2px solid #e5e7eb',
-                        borderRadius: '8px',
-                        fontSize: '1rem',
-                        resize: 'vertical'
-                      }}
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    style={styles.button}
-                  >
-                    📤 Update Progress
-                  </button>
-                </form>
-              </div>
-
-              {/* Work Order Progress */}
-              <div style={styles.section}>
-                <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Current Progress</h3>
-                <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-                  <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#0f766e' }}>
-                    {workOrder.progress}%
-                  </div>
-                  <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>
-                    Overall Completion
+          {/* Right Column - Maintenance actions */}
+          <div>
+            {/* Progress Update Form */}
+            <div style={styles.section}>
+              <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Update Progress</h3>
+              
+              <form onSubmit={handleUpdateProgress}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    Progress (%)
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={newUpdate.progress}
+                    onChange={(e) => setNewUpdate({...newUpdate, progress: parseInt(e.target.value)})}
+                    style={{ width: '100%' }}
+                  />
+                  <div style={{ textAlign: 'center', fontWeight: '600', marginTop: '0.5rem' }}>
+                    {newUpdate.progress}%
                   </div>
                 </div>
-                <div style={styles.progressBar}>
-                  <div style={{
-                    height: '100%',
-                    width: `${workOrder.progress}%`,
-                    background: getStatusColor(workOrder.status),
-                    transition: 'width 0.3s ease'
-                  }}></div>
-                </div>
 
-                {workOrder.progress === 100 && workOrder.status !== 'completed' && (
-                  <button
-                    onClick={handleCompleteWorkOrder}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    Status
+                  </label>
+                  <select
+                    value={newUpdate.status}
+                    onChange={(e) => setNewUpdate({...newUpdate, status: e.target.value})}
                     style={{
-                      ...styles.button,
-                      background: '#10b981',
                       width: '100%',
-                      marginTop: '1rem'
+                      padding: '0.75rem',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontSize: '1rem'
                     }}
                   >
-                    ✅ Mark as Completed
-                  </button>
-                )}
-              </div>
-
-              {/* Quick Actions */}
-              <div style={styles.section}>
-                <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Quick Actions</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <button style={{
-                    ...styles.button,
-                    background: '#3b82f6'
-                  }}>
-                    📞 Request Assistance
-                  </button>
-                  <button style={{
-                    ...styles.button,
-                    background: '#f59e0b'
-                  }}>
-                    🛠️ Request Tools
-                  </button>
-                  <button style={styles.dangerButton}>
-                    🚨 Report Issue
-                  </button>
+                    <option value="in-progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="pending">Pending</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
                 </div>
-              </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: '0.5rem' }}>
+                    Notes
+                  </label>
+                  <textarea
+                    value={newUpdate.notes}
+                    onChange={(e) => setNewUpdate({...newUpdate, notes: e.target.value})}
+                    rows="4"
+                    placeholder="Add update notes, work performed, issues encountered..."
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '8px',
+                      fontSize: '1rem',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  style={styles.button}
+                >
+                  📤 Update Progress
+                </button>
+              </form>
             </div>
-          )}
 
-          {/* Right Column for Inspector (Read-only) */}
-          {user.role === 'inspector' && (
-            <div>
-              <div style={styles.section}>
-                <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Work Order Status</h3>
-                <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-                  <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#0f766e' }}>
-                    {workOrder.progress}%
-                  </div>
-                  <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>
-                    Completion Progress
-                  </div>
+            {/* Work Order Progress */}
+            <div style={styles.section}>
+              <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Current Progress</h3>
+              <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#0f766e' }}>
+                  {workOrder.progress}%
                 </div>
-                <div style={styles.progressBar}>
-                  <div style={{
-                    height: '100%',
-                    width: `${workOrder.progress}%`,
-                    background: getStatusColor(workOrder.status),
-                    transition: 'width 0.3s ease'
-                  }}></div>
+                <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>
+                  Overall Completion
                 </div>
               </div>
+              <div style={styles.progressBar}>
+                <div style={{
+                  height: '100%',
+                  width: `${workOrder.progress}%`,
+                  background: getStatusColor(workOrder.status),
+                  transition: 'width 0.3s ease'
+                }}></div>
+              </div>
 
-              <div style={styles.section}>
-                <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Maintenance Team</h3>
-                <div style={{ 
-                  background: '#f8fafc', 
-                  padding: '1rem', 
-                  borderRadius: '8px',
-                  textAlign: 'center'
+              {workOrder.progress === 100 && workOrder.status !== 'completed' && (
+                <button
+                  onClick={handleCompleteWorkOrder}
+                  style={{
+                    ...styles.button,
+                    background: '#10b981',
+                    width: '100%',
+                    marginTop: '1rem'
+                  }}
+                >
+                  ✅ Mark as Completed
+                </button>
+              )}
+            </div>
+
+            {/* Quick Actions */}
+            <div style={styles.section}>
+              <h3 style={{ margin: '0 0 1rem 0', color: '#1f2937' }}>Quick Actions</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <button style={{
+                  ...styles.button,
+                  background: '#3b82f6'
                 }}>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#1f2937' }}>
-                    {workOrder.assignedTo}
-                  </div>
-                  <div style={{ color: '#6b7280', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-                    Assigned Crew
-                  </div>
-                </div>
+                  📞 Request Assistance
+                </button>
+                <button style={{
+                  ...styles.button,
+                  background: '#f59e0b'
+                }}>
+                  🛠️ Request Tools
+                </button>
+                <button style={styles.dangerButton}>
+                  🚨 Report Issue
+                </button>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </main>
 

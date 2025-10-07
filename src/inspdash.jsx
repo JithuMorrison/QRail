@@ -967,7 +967,7 @@ const InspectorDashboard = ({ user }) => {
               cursor: 'pointer',
               fontWeight: '600'
             }}
-            onClick={() => nav("/work-order/123")}
+            onClick={() => nav("/work-order/new")}
             >
               📋 Create Work Order
             </button>

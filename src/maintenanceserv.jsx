@@ -1,4 +1,4 @@
-// maintenanceserv.js
+// maintenanceserv.js - UPDATED
 const API_BASE = 'http://localhost:5000/api';
 
 export const maintenanceService = {
@@ -17,7 +17,8 @@ export const maintenanceService = {
       throw new Error('Failed to fetch work orders');
     }
 
-    return response.json();
+    const data = await response.json();
+    return data;
   },
 
   async getWorkOrder(workOrderId) {
@@ -29,10 +30,14 @@ export const maintenanceService = {
     });
 
     if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Work order not found');
+      }
       throw new Error('Failed to fetch work order details');
     }
 
-    return response.json();
+    const data = await response.json();
+    return data;
   },
 
   async createWorkOrder(workOrderData) {
@@ -48,10 +53,11 @@ export const maintenanceService = {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message);
+      throw new Error(error.message || 'Failed to create work order');
     }
 
-    return response.json();
+    const data = await response.json();
+    return data;
   },
 
   async updateWorkOrder(workOrderId, updateData) {
@@ -67,10 +73,11 @@ export const maintenanceService = {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message);
+      throw new Error(error.message || 'Failed to update work order');
     }
 
-    return response.json();
+    const data = await response.json();
+    return data;
   },
 
   async getWorkOrderUpdates(workOrderId) {
@@ -85,7 +92,8 @@ export const maintenanceService = {
       throw new Error('Failed to fetch work order updates');
     }
 
-    return response.json();
+    const data = await response.json();
+    return data;
   },
 
   // Maintenance Analytics
@@ -101,157 +109,17 @@ export const maintenanceService = {
       throw new Error('Failed to fetch maintenance statistics');
     }
 
-    return response.json();
+    const data = await response.json();
+    return data;
   },
 
-  async getMaintenanceAnalytics(filters = {}) {
-    const token = localStorage.getItem('token');
-    const queryParams = new URLSearchParams(filters).toString();
-    const response = await fetch(`${API_BASE}/maintenance/analytics?${queryParams}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch maintenance analytics');
-    }
-
-    return response.json();
-  },
-
-  // Resource Management
-  async getCrewAvailability() {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/maintenance/crew-availability`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch crew availability');
-    }
-
-    return response.json();
-  },
-
-  async getEquipmentStatus() {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/maintenance/equipment-status`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch equipment status');
-    }
-
-    return response.json();
-  },
-
-  // Maintenance Schedule
-  async getMaintenanceSchedule(startDate, endDate) {
-    const token = localStorage.getItem('token');
-    const response = await fetch(
-      `${API_BASE}/maintenance/schedule?start_date=${startDate}&end_date=${endDate}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch maintenance schedule');
-    }
-
-    return response.json();
-  },
-
-  async updateMaintenanceSchedule(scheduleData) {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/maintenance/schedule`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(scheduleData),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message);
-    }
-
-    return response.json();
-  },
-
-  // Defect Management
-  async getDefects(severity = 'all', page = 1, per_page = 20) {
-    const token = localStorage.getItem('token');
-    const url = `${API_BASE}/maintenance/defects?page=${page}&per_page=${per_page}&severity=${severity}`;
-    
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch defects');
-    }
-
-    return response.json();
-  },
-
-  async createDefect(defectData) {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/maintenance/defects`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(defectData),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message);
-    }
-
-    return response.json();
-  },
-
-  // Reports
-  async generateMaintenanceReport(type, filters = {}) {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/maintenance/reports/${type}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(filters),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to generate maintenance report');
-    }
-
-    return response.json();
-  },
-
-  // Mock data for development
+  // Mock data for development (fallback)
   async getMockWorkOrders() {
     await new Promise(resolve => setTimeout(resolve, 1000));
     return {
       workOrders: [
         {
-          id: 'WO-001',
+          id: 'WO-20241231-1234',
           title: 'Emergency Gauge Adjustment',
           defectType: 'Gauge Widening',
           priority: 'critical',
@@ -264,7 +132,7 @@ export const maintenanceService = {
           trackSection: 'Section A-12'
         },
         {
-          id: 'WO-002',
+          id: 'WO-20241231-5678',
           title: 'Rail Grinding - Wear Correction',
           defectType: 'Rail Wear',
           priority: 'high',
