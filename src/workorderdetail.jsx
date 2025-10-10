@@ -114,7 +114,7 @@ const WorkOrderDetail = ({ user }) => {
       if (user.role === 'inspector') {
         // Redirect inspector back to their dashboard after creation
         navigate('/inspector', { 
-          state: { message: `Work order ${result.workOrder.id} created successfully!` } 
+          state: { message: `Work order ${result.workOrder.id} created successfully!!` } 
         });
       } else {
         // Redirect maintenance to the newly created work order
